@@ -1216,10 +1216,10 @@ window.game = game; // 暴露给全局，使HTML onclick生效
    MULTIPLAYER EXTENSION (Added Code)
    =========================================
 */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-analytics.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -1251,31 +1251,39 @@ function deserializeTile(d) {
 
 // 全局函数绑定给HTML按钮
 window.createRoom = async function() {
-    updateStatus("正在登录...");
-    await signInAnonymously(auth);
-    
-    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
-    updateStatus("创建房间中...");
-    
-    // 保存初始状态
-    const state = {
-        board: game.boardState.map(row => row.map(c => serializeTile(c))),
-        players: game.players.map(p => ({
-            name: p.name,
-            score: p.score,
-            misses: p.misses,
-            active: p.active,
-            rack: p.rack.map(t => serializeTile(t))
-        })),
-        numberBag: game.numberBag.map(t => serializeTile(t)),
-        operatorBag: game.operatorBag.map(t => serializeTile(t)),
-        currentPlayerIndex: 0,
-        isFirstTurn: true,
-        connectedCount: 1
-    };
-    
-    await setDoc(doc(db, "games", roomId), state);
-    enterGame(roomId, 0);
+    try {
+        updateStatus("正在登录 (Logging in)...");
+        await signInAnonymously(auth);
+        
+        const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+        updateStatus("创建房间中 (Creating)...");
+        
+        // 保存初始状态
+        const state = {
+            board: game.boardState.map(row => row.map(c => serializeTile(c))),
+            players: game.players.map(p => ({
+                name: p.name,
+                score: p.score,
+                misses: p.misses,
+                active: p.active,
+                rack: p.rack.map(t => serializeTile(t))
+            })),
+            numberBag: game.numberBag.map(t => serializeTile(t)),
+            operatorBag: game.operatorBag.map(t => serializeTile(t)),
+            currentPlayerIndex: 0,
+            isFirstTurn: true,
+            connectedCount: 1
+        };
+        
+        await setDoc(doc(db, "games", roomId), state);
+        enterGame(roomId, 0);
+    } catch (e) {
+        console.error("Error creating room:", e);
+        updateStatus("❌ 错误: " + e.message);
+        if (e.message.includes("permission-denied")) {
+             updateStatus("❌ 权限错误: 请检查 Firebase 控制台 Firestore 规则");
+        }
+    }
 }
 
 window.joinRoom = async function() {
@@ -1284,26 +1292,32 @@ window.joinRoom = async function() {
         updateStatus("请输入6位房间号");
         return;
     }
-    updateStatus("正在连接...");
-    await signInAnonymously(auth);
     
-    const docRef = doc(db, "games", input);
-    const snap = await getDoc(docRef);
-    
-    if(!snap.exists()) {
-        updateStatus("房间不存在");
-        return;
+    try {
+        updateStatus("正在连接 (Connecting)...");
+        await signInAnonymously(auth);
+        
+        const docRef = doc(db, "games", input);
+        const snap = await getDoc(docRef);
+        
+        if(!snap.exists()) {
+            updateStatus("❌ 房间不存在");
+            return;
+        }
+        
+        const data = snap.data();
+        if(data.connectedCount >= 4) {
+            updateStatus("❌ 房间已满");
+            return;
+        }
+        
+        const newIndex = data.connectedCount;
+        await updateDoc(docRef, { connectedCount: newIndex + 1 });
+        enterGame(input, newIndex);
+    } catch (e) {
+        console.error("Error joining room:", e);
+        updateStatus("❌ 连接失败: " + e.message);
     }
-    
-    const data = snap.data();
-    if(data.connectedCount >= 4) {
-        updateStatus("房间已满");
-        return;
-    }
-    
-    const newIndex = data.connectedCount;
-    await updateDoc(docRef, { connectedCount: newIndex + 1 });
-    enterGame(input, newIndex);
 }
 
 function enterGame(roomId, index) {
