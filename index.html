@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 添加 viewport-fit=cover 以更好适配全面屏设备 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>G-MATH多人联机版</title>
+    <title>G-MATH - 数学拼字游戏 (Online)</title>
     <style>
         :root {
-            /* === v.02 样式变量 === */
+            /* 基础颜色 */
             --board-bg: #f0f0f0;
             --tile-bg: #fdf5e6;
             --tile-color: #333;
@@ -16,72 +17,26 @@
             --tw-color: #ff8b94;
             --accent: #4a4e69;
             --dark-bg: #22223b;
-            --cell-size: 38px; /* 默认桌面端 */
         }
 
         * { box-sizing: border-box; }
 
+        /* 默认 body 样式 (适用于竖屏/普通情况) */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--dark-bg);
             color: white;
             margin: 0;
             padding: 0;
+            /* 竖屏默认允许滚动，高度自动 */
+            height: auto;
             min-height: 100vh;
             overflow-y: auto; 
             display: flex;
             flex-direction: column;
         }
 
-        /* === 联机大厅样式 (来自 Online 版) === */
-        #lobby-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--dark-bg);
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .lobby-card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            padding: 30px;
-            border-radius: 15px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            text-align: center;
-        }
-        .lobby-input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border: 1px solid #555;
-            background: rgba(0,0,0,0.3);
-            color: white;
-            font-size: 1rem;
-        }
-        .lobby-btn {
-            width: 100%;
-            padding: 12px;
-            margin: 5px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .btn-create { background: #2a9d8f; color: white; }
-        .btn-join { background: #e9c46a; color: #333; }
-
-        /* === 游戏主体布局 (v.02) === */
-        #game-container { display: none; flex-direction: column; height: 100%; min-height: 100vh; }
-
+        /* === 顶部导航 === */
         header {
             height: 50px;
             background: #1a1a2e;
@@ -92,20 +47,26 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             flex-shrink: 0;
             z-index: 20;
+            position: relative; /* 确保层级 */
         }
 
-        h1 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 15px; }
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
 
+        /* === 主布局容器 === */
         .main-wrapper {
             flex: 1;
             display: flex;
             padding: 10px;
             width: 100%;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
         }
 
+        /* === 棋盘区域 === */
         .board-area {
             flex-shrink: 0;
             display: flex;
@@ -133,7 +94,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: calc(var(--cell-size) * 0.35);
+            font-size: calc(var(--cell-size) * 0.28);
             color: #333;
             font-weight: bold;
             position: relative;
@@ -141,14 +102,14 @@
             cursor: pointer;
         }
 
-        /* 特殊格子 */
+        /* 特殊格子样式 */
         .cell.dl { background-color: var(--dl-color); color: #004d40; }
         .cell.tl { background-color: var(--tl-color); color: white; }
         .cell.dw { background-color: var(--dw-color); color: #880e4f; }
         .cell.tw { background-color: var(--tw-color); color: #880e4f; }
         .cell.center { background-color: var(--dw-color); font-size: calc(var(--cell-size) * 0.6); }
 
-        /* 牌样式 (统一) */
+        /* 牌样式 */
         .tile {
             width: calc(var(--cell-size) - 4px);
             height: calc(var(--cell-size) - 4px);
@@ -161,41 +122,44 @@
             font-weight: bold;
             color: var(--tile-color);
             box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            cursor: pointer;
+            cursor: grab;
             z-index: 10;
             position: relative;
-            transition: transform 0.1s;
+            transition: transform 0.1s, border 0.1s, box-shadow 0.1s;
         }
         .tile span.points {
             position: absolute;
-            bottom: 1px;
-            right: 2px;
-            font-size: 0.5em;
+            bottom: 2px;
+            right: 3px;
+            font-size: calc(var(--cell-size) * 0.25);
             color: #666;
         }
         .tile.temp { border: 2px solid #4caf50; box-shadow: 0 0 5px #4caf50; }
         .tile.locked { cursor: default; background-color: #ddd; color: #555; }
         .tile.selected {
-            transform: translateY(-5px) scale(1.1);
+            transform: translateY(-8px) scale(1.1);
             border: 2px solid #ffd700;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.9);
             z-index: 20;
             background-color: #fffbf0;
         }
+        .rack-swapping {
+            background: rgba(233, 196, 106, 0.2) !important;
+            border: 2px dashed #e9c46a !important;
+        }
 
-        /* 侧边栏 */
+        /* === 侧边栏 === */
         .sidebar {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            min-width: 300px;
-            max-width: 400px;
-            flex: 1;
+            gap: 15px;
         }
+
         .panel {
             background: rgba(255,255,255,0.07);
             padding: 15px;
             border-radius: 12px;
+            backdrop-filter: blur(5px);
             border: 1px solid rgba(255,255,255,0.1);
         }
 
@@ -210,584 +174,326 @@
             align-items: center;
             flex-wrap: wrap;
             border: 2px dashed rgba(255,255,255,0.1);
+            transition: background 0.3s;
+        }
+        
+        #rack-container .tile {
+            transform: scale(1.1); 
+            margin: 5px;
+            cursor: pointer;
+        }
+        #rack-container .tile.selected {
+            transform: scale(1.2) translateY(-5px);
         }
 
-        /* v.02 积分榜样式 (含 Mini Rack) */
+        /* 排行榜 */
+        .score-board {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
         .player-score {
             display: flex;
-            align-items: center;
-            padding: 10px 5px;
-            font-size: 0.9rem;
+            justify-content: space-between;
+            padding: 8px 10px;
+            font-size: 1rem;
             border-bottom: 1px solid rgba(255,255,255,0.05);
-            gap: 8px;
+            border-radius: 4px;
         }
-        .p-name {
-            width: 70px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-weight: 500;
-        }
-        .p-score { font-weight: bold; text-align: right; width: 40px; }
         .player-score.active { 
             background: linear-gradient(90deg, rgba(255,215,0,0.2) 0%, transparent 100%);
-            color: #ffd700; border-left: 4px solid #ffd700;
+            color: #ffd700; 
+            font-weight: bold;
+            border-left: 4px solid #ffd700;
         }
-        .player-score.me .p-name { color: #a8e6cf; font-weight: bold; } /* 标记自己 */
+        .player-score.eliminated {
+            opacity: 0.5;
+            background: rgba(0,0,0,0.3);
+            color: #aaa;
+            text-decoration: line-through;
+        }
 
-        /* 按钮 */
-        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        button {
-            padding: 12px 5px; border: none; border-radius: 8px;
-            font-weight: bold; cursor: pointer; color: white;
-            font-size: 0.9rem; display: flex; justify-content: center; align-items: center;
+        /* 按钮组 */
+        .actions { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px; 
         }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-play { background: #2a9d8f; grid-column: span 3; font-size: 1.1rem; padding: 15px; }
+        button {
+            padding: 12px 5px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+        button:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(100%); }
+        
+        .btn-play { background: #2a9d8f; color: white; grid-column: span 3; font-size: 1.1rem; padding: 15px;}
         .btn-swap { background: #e9c46a; color: #333; }
-        .btn-reset { background: #e76f51; }
-        .btn-pass { background: #264653; }
-        .btn-help { background: #607d8b; grid-column: span 3; margin-top: 5px;}
+        .btn-swap.active { background: #ffca3a; box-shadow: inset 0 0 10px rgba(0,0,0,0.2); animation: pulse 2s infinite; }
+        .btn-reset { background: #e76f51; color: white; }
+        .btn-pass { background: #264653; color: white; }
+        .btn-shuffle { background: #457b9d; color: white; grid-column: span 2; font-size: 0.8rem; opacity: 0.9;} 
+        .btn-help { background: #607d8b; color: white; grid-column: span 1; font-size: 0.8rem; opacity: 0.9; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
         #message-area {
-            text-align: center; color: #ffd700; font-weight: bold;
-            padding: 10px; background: rgba(0,0,0,0.4);
-            border-radius: 6px; min-height: 40px; display: flex; align-items: center; justify-content: center;
+            text-align: center;
+            color: #ffd700;
+            font-weight: bold;
+            padding: 10px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+            font-size: 1rem;
         }
-        
-        #room-id-display { font-family: monospace; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 4px; color: #4cc9f0; cursor: pointer; margin-left: 10px; font-size: 0.8em;}
-        
+
+        .legend {
+            display: flex;
+            justify-content: space-around;
+            font-size: 0.75rem;
+            padding: 10px;
+        }
+        .legend div { display: flex; align-items: center; gap: 5px; }
+
         /* Modal */
         .modal {
-            display: none; position: fixed;
+            display: none;
+            position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85);
-            justify-content: center; align-items: center; z-index: 100;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
         }
         .modal-content {
-            background: white; color: #333; padding: 30px;
-            border-radius: 15px; text-align: center;
-            max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative;
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 600px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
         }
-        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #999; }
         .tutorial-section { text-align: left; margin-bottom: 20px; padding: 10px; background: #f9f9f9; border-radius: 8px; }
-        .tutorial-list li { margin-bottom: 5px; }
+        .tutorial-section h3 { color: #2a9d8f; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 0;}
+        .tutorial-list { padding-left: 20px; margin: 10px 0; }
+        .tutorial-list li { margin-bottom: 8px; line-height: 1.4; }
+        .key-point { font-weight: bold; color: #e76f51; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #999; }
+        .endgame-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .endgame-table th, .endgame-table td { padding: 10px; border-bottom: 1px solid #ddd; }
+        .endgame-table th { background: #f0f0f0; color: #333; }
+        .score-change.negative { color: #e76f51; }
+        .score-change.positive { color: #2a9d8f; font-weight: bold; }
 
-        /* 响应式 */
-        @media (max-width: 768px) {
-            :root { --cell-size: calc((100vw - 26px) / 15); }
-            .main-wrapper { flex-direction: column; align-items: center; }
-            .sidebar { width: 100%; max-width: none; }
-            .board-area { padding: 2px; }
+        /* === 响应式布局：针对横屏 (Landscape) === */
+        @media (orientation: landscape) {
+            body {
+                height: 100vh; /* 强制全屏高度 */
+                height: 100dvh; /* 适配移动端动态地址栏 */
+                overflow: hidden; /* 锁定滚动，确保内容在屏幕内 */
+            }
+
+            /* 计算单元格大小：预留顶部 Header(50px) 和 上下缓冲(约60px)，以及 dvh 支持 */
+            :root {
+                --available-h: calc(100dvh - 100px); /* 减去更多空间以防底部被遮挡 */
+                --cell-size: min(calc(var(--available-h) / 15), calc(55vw / 15));
+                --sidebar-padding: 20px;
+            }
+
+            .main-wrapper {
+                height: calc(100dvh - 50px);
+                overflow: hidden;
+                align-items: center;
+                justify-content: flex-start;
+                gap: 2vw;
+                padding: 5px var(--sidebar-padding);
+            }
+
+            .board-area {
+                padding: 4px;
+            }
+
+            /* 侧边栏适配：高度跟随棋盘，内部使用 flex 分配空间 */
+            .sidebar {
+                flex: 1;
+                /* 高度与棋盘对齐，确保不超出一屏 */
+                height: calc(15 * var(--cell-size) + 12px); 
+                min-width: 280px;
+                gap: 2vh; /* 使用相对单位间距 */
+            }
+
+            /* 让侧边栏内部元素自适应高度 */
+            .panel {
+                padding: 1.5vh; /* 减少内边距 */
+            }
+            
+            /* 字体大小随视口高度缩放，防止在小横屏设备上太大 */
+            .panel, button, .player-score {
+                font-size: clamp(0.8rem, 2.2vh, 1rem); 
+            }
+
+            h4 { margin: 0 0 0.5vh 0; }
+
+            #rack-container {
+                min-height: calc(var(--cell-size) * 1.2 + 10px);
+                padding: 5px;
+            }
+
+            /* 按钮更紧凑 */
+            button {
+                padding: 1.2vh 5px;
+            }
+
+            /* 隐藏多余空白 */
+            .score-board {
+                overflow-y: auto; /* 如果积分榜太长，允许内部滚动 */
+                flex-shrink: 1;   /* 允许压缩 */
+            }
         }
+
+        /* === 响应式布局：针对竖屏 (Portrait) === */
+        @media (orientation: portrait) {
+            :root {
+                --cell-size: calc((100vw - 20px) / 15);
+            }
+
+            .main-wrapper {
+                flex-direction: column;
+                justify-content: flex-start;
+                padding: 10px;
+                height: auto; /* 允许撑开 */
+                overflow: visible;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                flex: none;
+                gap: 10px;
+            }
+
+            .board-area { margin-bottom: 10px; }
+            .score-board { display: none; } /* 移动端竖屏隐藏详细积分榜 */
+            .mobile-score { display: inline-block !important; color: #ffd700; font-size: 0.9rem;}
+            
+            #rack-container .tile { transform: scale(1); }
+            #rack-container .tile.selected { transform: scale(1.1) translateY(-5px); }
+        }
+        
+        .mobile-score { display: none; }
+        
+        /* Online Lobby Styles */
+        #lobby-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a1a2e;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .lobby-box {
+            background: #22223b;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #4a4e69;
+            width: 90%;
+            max-width: 400px;
+        }
+        .lobby-input {
+            padding: 12px;
+            border-radius: 5px;
+            border: none;
+            margin: 15px auto; /* Changed to center */
+            width: 80%;
+            display: block; /* Force block to center */
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .lobby-btn {
+            background: #2a9d8f;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 15px auto; /* Changed to center */
+            width: 80%;
+            display: block; /* Force block to center */
+        }
+        .lobby-btn.secondary { background: #4a4e69; }
     </style>
-
-    <!-- 引入 Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        // === 你的 Firebase 配置 ===
-        const firebaseConfig = {
-            apiKey: "AIzaSyDG8QBOaVkG2X2q04dyG0wVe-vYvsOVAdQ",
-            authDomain: "g-math-pvp-35665.firebaseapp.com",
-            projectId: "g-math-pvp-35665",
-            storageBucket: "g-math-pvp-35665.firebasestorage.app",
-            messagingSenderId: "715488897072",
-            appId: "1:715488897072:web:88c73bf50912fd6c90e5f5",
-            measurementId: "G-63SZM7FYCZ"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        // 全局状态
-        let myUid = null;
-        let myName = "Player";
-        let currentRoomId = null;
-        let localGame = null;
-
-        // === 登录 ===
-        signInAnonymously(auth).then(() => console.log("Firebase Connected")).catch(e => alert("连接失败: " + e.message));
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                myUid = user.uid;
-                document.getElementById('btn-create').disabled = false;
-                document.getElementById('btn-join').disabled = false;
-            }
-        });
-
-        function getRoomRef(id) { return doc(db, 'rooms', id); }
-
-        // === 大厅功能 ===
-        window.createRoom = async () => {
-            if (!myUid) return alert("正在连接...");
-            const name = document.getElementById('player-name').value.trim();
-            if (!name) return alert("请输入昵称");
-            myName = name;
-
-            const roomId = Math.floor(1000 + Math.random() * 9000).toString();
-            
-            const initialGame = new GameEngine();
-            const gameData = initialGame.serialize();
-            // 房主加入
-            gameData.players.push({
-                uid: myUid, name: myName, score: 0, active: true, misses: 0,
-                rack: initialGame.drawTiles(8) // v.02 使用 8 张牌
-            });
-            gameData.bags = { number: initialGame.numberBag, operator: initialGame.operatorBag };
-
-            try {
-                await setDoc(getRoomRef(roomId), gameData);
-                enterRoom(roomId);
-            } catch(e) { alert("创建失败: " + e.message); }
-        };
-
-        window.joinRoom = async () => {
-            if (!myUid) return alert("正在连接...");
-            const name = document.getElementById('player-name').value.trim();
-            const rid = document.getElementById('room-id-input').value.trim();
-            if (!name || !rid) return alert("请输入信息");
-            myName = name;
-
-            const ref = getRoomRef(rid);
-            try {
-                const snap = await getDoc(ref);
-                if (!snap.exists()) return alert("房间不存在");
-                const data = snap.data();
-                
-                if (data.status !== 'waiting' && !data.players.find(p=>p.uid===myUid)) return alert("游戏已开始");
-                if (data.players.length >= 4 && !data.players.find(p=>p.uid===myUid)) return alert("房间已满");
-
-                if (!data.players.find(p=>p.uid===myUid)) {
-                    const newP = {
-                        uid: myUid, name: myName, score: 0, active: true, misses: 0,
-                        rack: [] // 暂时空，等待同步
-                    };
-                    await updateDoc(ref, { players: [...data.players, newP] });
-                }
-                enterRoom(rid);
-            } catch(e) { alert("加入失败: " + e.message); }
-        };
-
-        function enterRoom(rid) {
-            currentRoomId = rid;
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('game-container').style.display = 'flex';
-            document.getElementById('room-id-text').innerText = rid;
-
-            onSnapshot(getRoomRef(rid), (doc) => {
-                if(doc.exists()) handleGameUpdate(doc.data());
-                else { alert("房间已关闭"); location.reload(); }
-            });
-
-            localGame = new GameEngine();
-            localGame.initUI();
-        }
-
-        window.startGame = async () => {
-            await updateDoc(getRoomRef(currentRoomId), { status: 'playing' });
-        };
-
-        window.copyRoomId = () => {
-            navigator.clipboard.writeText(currentRoomId).then(()=>alert("房间号已复制")).catch(()=>alert("复制失败"));
-        };
-
-        // === 游戏核心更新处理 ===
-        async function handleGameUpdate(data) {
-            const myIdx = data.players.findIndex(p => p.uid === myUid);
-            const isHost = myIdx === 0;
-
-            // 自动补牌逻辑
-            if (myIdx !== -1 && data.players[myIdx].rack.length === 0 && data.status !== 'finished') {
-                const totalBag = data.bags.number.length + data.bags.operator.length;
-                if (totalBag > 0) {
-                    localGame.syncFromCloud(data);
-                    const needed = 8 - data.players[myIdx].rack.length; // v.02 是8张
-                    if (needed > 0) {
-                        const newTiles = localGame.drawTiles(needed);
-                        const newPlayers = JSON.parse(JSON.stringify(data.players));
-                        newPlayers[myIdx].rack.push(...newTiles);
-                        await updateDoc(getRoomRef(currentRoomId), {
-                            players: newPlayers,
-                            bags: { number: localGame.numberBag, operator: localGame.operatorBag }
-                        });
-                        return; 
-                    }
-                }
-            }
-
-            localGame.syncFromCloud(data);
-            localGame.myIndex = myIdx;
-            localGame.render();
-
-            // 遮罩处理
-            const waitEl = document.getElementById('waiting-overlay');
-            if (data.status === 'waiting') {
-                waitEl.style.display = 'flex';
-                document.getElementById('player-list-wait').innerHTML = data.players.map(p=>`<li>${p.name}</li>`).join('');
-                document.getElementById('btn-start-game').style.display = isHost ? 'block' : 'none';
-            } else {
-                waitEl.style.display = 'none';
-            }
-
-            if (data.status === 'finished') {
-                document.getElementById('modal').style.display = 'flex';
-                document.getElementById('modal-msg').innerText = "游戏结束！请查看积分榜。";
-            }
-        }
-
-        // === 游戏引擎 (逻辑移植自 v.02 + 联机适配) ===
-        class GameEngine {
-            constructor() {
-                this.boardState = Array(15).fill(null).map(() => Array(15).fill(null));
-                this.players = [];
-                this.numberBag = [];
-                this.operatorBag = [];
-                this.currentTurnIndex = 0;
-                this.myIndex = -1;
-                this.tempPlaced = [];
-                this.selectedTileId = null;
-                this.isSwapping = false; // 简单实现：联机版暂停换牌模式，或者简化为"跳过"
-                
-                // v.02 常量
-                this.TILE_DISTRIBUTION = {
-                    '0': { count: 6, score: 1 }, '1': { count: 6, score: 1 }, '2': { count: 6, score: 2 },
-                    '3': { count: 6, score: 2 }, '4': { count: 6, score: 2 }, '5': { count: 6, score: 3 },
-                    '6': { count: 6, score: 3 }, '7': { count: 6, score: 4 }, '8': { count: 6, score: 4 },
-                    '9': { count: 6, score: 4 }, '+': { count: 7, score: 2 }, '-': { count: 7, score: 2 },
-                    '×': { count: 7, score: 4 }, '÷': { count: 7, score: 4 }, '=': { count: 20, score: 1 }
-                };
-                
-                this.generateTileBag();
-                this.shuffleBag();
-            }
-
-            serialize() {
-                return {
-                    status: 'waiting',
-                    currentTurnIndex: 0,
-                    players: [],
-                    board: {}, 
-                    bags: { number: this.numberBag, operator: this.operatorBag }
-                };
-            }
-
-            syncFromCloud(data) {
-                this.players = data.players;
-                this.currentTurnIndex = data.currentTurnIndex;
-                this.numberBag = JSON.parse(JSON.stringify(data.bags.number));
-                this.operatorBag = JSON.parse(JSON.stringify(data.bags.operator));
-                
-                this.boardState = Array(15).fill(null).map(() => Array(15).fill(null));
-                for (let key in data.board) {
-                    const [r, c] = key.split(',').map(Number);
-                    this.boardState[r][c] = data.board[key];
-                }
-            }
-
-            generateTileBag() {
-                let id = 0;
-                for (let char in this.TILE_DISTRIBUTION) {
-                    const info = this.TILE_DISTRIBUTION[char];
-                    const isNum = /\d/.test(char);
-                    for(let i=0; i<info.count; i++) {
-                        const t = { id: id++, char, score: info.score };
-                        if(isNum) this.numberBag.push(t); else this.operatorBag.push(t);
-                    }
-                }
-            }
-            
-            shuffleBag() {
-                const s = (arr) => arr.sort(() => Math.random() - 0.5);
-                s(this.numberBag); s(this.operatorBag);
-            }
-
-            drawTiles(count) {
-                let drawn = [];
-                for(let i=0; i<count; i++) {
-                    if (this.numberBag.length > 0 && (Math.random() > 0.4 || this.operatorBag.length === 0)) {
-                        drawn.push(this.numberBag.pop());
-                    } else if (this.operatorBag.length > 0) {
-                        drawn.push(this.operatorBag.pop());
-                    }
-                }
-                return drawn;
-            }
-
-            initUI() {
-                const boardEl = document.getElementById('game-board');
-                boardEl.innerHTML = '';
-                const SPECIAL = {
-                    'TW': ['0,0', '0,7', '0,14', '7,0', '7,14', '14,0', '14,7', '14,14'],
-                    'DW': ['1,1', '2,2', '3,3', '4,4', '10,10', '11,11', '12,12', '13,13', '1,13', '2,12', '3,11', '4,10', '10,4', '11,3', '12,2', '13,1'],
-                    'TL': ['1,5', '1,9', '5,1', '5,5', '5,9', '5,13', '9,1', '9,5', '9,9', '9,13', '13,5', '13,9'],
-                    'DL': ['0,3', '0,11', '2,6', '2,8', '3,0', '3,7', '3,14', '6,2', '6,6', '6,8', '6,12', '7,3', '7,11', '8,2', '8,6', '8,8', '8,12', '11,0', '11,7', '11,14', '12,6', '12,8', '14,3', '14,11']
-                };
-
-                for (let r = 0; r < 15; r++) {
-                    for (let c = 0; c < 15; c++) {
-                        const cell = document.createElement('div');
-                        cell.className = 'cell';
-                        cell.dataset.r = r;
-                        cell.dataset.c = c;
-                        const key = `${r},${c}`;
-                        if (r===7&&c===7) { cell.classList.add('center'); cell.innerHTML='★'; }
-                        else if (SPECIAL.TW.includes(key)) { cell.classList.add('tw'); cell.innerText='TW'; }
-                        else if (SPECIAL.DW.includes(key)) { cell.classList.add('dw'); cell.innerText='DW'; }
-                        else if (SPECIAL.TL.includes(key)) { cell.classList.add('tl'); cell.innerText='TL'; }
-                        else if (SPECIAL.DL.includes(key)) { cell.classList.add('dl'); cell.innerText='DL'; }
-                        
-                        cell.onclick = () => this.handleBoardClick(r, c);
-                        boardEl.appendChild(cell);
-                    }
-                }
-            }
-
-            render() {
-                // 1. 渲染棋盘
-                for(let r=0; r<15; r++) {
-                    for(let c=0; c<15; c++) {
-                        this.updateCell(r, c);
-                    }
-                }
-                
-                // 2. 渲染我的手牌
-                const rackEl = document.getElementById('rack-container');
-                rackEl.innerHTML = '';
-                if (this.myIndex !== -1 && this.players[this.myIndex]) {
-                    this.players[this.myIndex].rack.forEach(tile => {
-                        const t = document.createElement('div');
-                        t.className = 'tile';
-                        if (this.selectedTileId === tile.id) t.classList.add('selected');
-                        t.innerHTML = `${tile.char}<span class="points">${tile.score}</span>`;
-                        t.onclick = (e) => { e.stopPropagation(); this.handleRackClick(tile); };
-                        rackEl.appendChild(t);
-                    });
-                }
-
-                // 3. 状态信息
-                const isMyTurn = this.currentTurnIndex === this.myIndex;
-                const turnPlayer = this.players[this.currentTurnIndex];
-                const msgArea = document.getElementById('message-area');
-                
-                if (this.players.length > 0) {
-                    msgArea.innerText = isMyTurn ? "👉 轮到你了！" : `⏳ 等待 ${turnPlayer ? turnPlayer.name : '...'} 出牌`;
-                    msgArea.style.color = isMyTurn ? "#ffd700" : "#ccc";
-                }
-
-                document.querySelectorAll('.actions button').forEach(b => b.disabled = !isMyTurn);
-                document.querySelector('.btn-help').disabled = false; // 帮助按钮永远可用
-
-                // 4. v.02 风格积分榜
-                const list = document.getElementById('players-list');
-                list.innerHTML = '';
-                this.players.forEach((p, i) => {
-                    const div = document.createElement('div');
-                    div.className = `player-score ${i === this.currentTurnIndex ? 'active' : ''} ${i === this.myIndex ? 'me' : ''}`;
-                    
-                    
-                    div.innerHTML = `<span class="p-name">${p.name}</span> ${rackHtml} <span class="p-score">${p.score}</span>`;
-                    list.appendChild(div);
-                });
-                
-                document.getElementById('tiles-left-header').innerText = 
-                    this.numberBag.length + this.operatorBag.length;
-            }
-
-            updateCell(r, c) {
-                const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
-                if(!cell) return;
-                
-                const locked = this.boardState[r][c];
-                const temp = this.tempPlaced.find(t => t.r === r && t.c === c);
-                
-                const old = cell.querySelector('.tile');
-                if(old) old.remove();
-
-                if(locked || temp) {
-                    const tData = locked || temp.tile;
-                    const t = document.createElement('div');
-                    t.className = 'tile ' + (locked ? 'locked' : 'temp');
-                    t.innerHTML = `${tData.char}<span class="points">${tData.score}</span>`;
-                    if(temp) t.onclick = (e) => { e.stopPropagation(); this.recallTempTile(temp); };
-                    cell.appendChild(t);
-                }
-            }
-
-            handleRackClick(tile) {
-                if (this.currentTurnIndex !== this.myIndex) return;
-                this.selectedTileId = (this.selectedTileId === tile.id) ? null : tile.id;
-                this.render();
-            }
-
-            handleBoardClick(r, c) {
-                if (this.currentTurnIndex !== this.myIndex) return;
-                if (this.boardState[r][c]) return;
-                
-                if (this.selectedTileId !== null) {
-                    const rack = this.players[this.myIndex].rack;
-                    const idx = rack.findIndex(t => t.id === this.selectedTileId);
-                    if (idx === -1) return;
-                    
-                    const tile = rack[idx];
-                    this.players[this.myIndex].rack.splice(idx, 1);
-                    this.tempPlaced.push({ r, c, tile });
-                    this.selectedTileId = null;
-                    this.render();
-                }
-            }
-
-            recallTempTile(tObj) {
-                const idx = this.tempPlaced.indexOf(tObj);
-                if(idx > -1) {
-                    this.tempPlaced.splice(idx, 1);
-                    this.players[this.myIndex].rack.push(tObj.tile);
-                    this.render();
-                }
-            }
-
-            async recallAll() {
-                [...this.tempPlaced].forEach(t => this.recallTempTile(t));
-            }
-
-            // === 核心：提交与验证 (集成 v.02 验证逻辑) ===
-            async submitTurn() {
-                if (this.tempPlaced.length === 0) return alert("请先出牌");
-
-                // 1. 基础位置验证
-                const rows = this.tempPlaced.map(t => t.r);
-                const cols = this.tempPlaced.map(t => t.c);
-                const isRow = rows.every(r => r === rows[0]);
-                const isCol = cols.every(c => c === cols[0]);
-                if (!isRow && !isCol) return alert("必须排在同一行或同一列");
-
-                // 简单连通性检查
-                // 注意：完整版验证代码较长，为确保联机稳定性，这里使用简化验证
-                // 但保留“必须包含等号”的核心规则
-                const tiles = this.tempPlaced.map(t => t.tile.char);
-                if (!tiles.includes('=')) return alert("无效等式：必须包含 '='");
-
-                // 2. 计算分数 (简化版)
-                let score = 0;
-                this.tempPlaced.forEach(t => score += t.tile.score);
-                score += 10; // 奖励分
-
-                // 3. 提交数据
-                const me = this.players[this.myIndex];
-                me.score += score;
-                me.misses = 0;
-                
-                const boardUpdate = {};
-                // 获取之前所有锁定的牌
-                for(let r=0; r<15; r++) for(let c=0; c<15; c++) 
-                    if(this.boardState[r][c]) boardUpdate[`${r},${c}`] = this.boardState[r][c];
-                // 加上新的牌
-                this.tempPlaced.forEach(t => boardUpdate[`${t.r},${t.c}`] = t.tile);
-
-                // 补牌
-                const needed = 8 - me.rack.length;
-                const newTiles = this.drawTiles(needed);
-                me.rack.push(...newTiles);
-
-                const nextIdx = (this.currentTurnIndex + 1) % this.players.length;
-                this.tempPlaced = []; // 本地清空，等待 Firebase 推送回来
-
-                try {
-                    await updateDoc(getRoomRef(currentRoomId), {
-                        board: boardUpdate,
-                        players: this.players,
-                        currentTurnIndex: nextIdx,
-                        bags: { number: this.numberBag, operator: this.operatorBag }
-                    });
-                } catch(e) { alert("提交失败: " + e.message); }
-            }
-
-            async passTurn() {
-                await this.recallAll();
-                const nextIdx = (this.currentTurnIndex + 1) % this.players.length;
-                await updateDoc(getRoomRef(currentRoomId), { currentTurnIndex: nextIdx });
-            }
-        }
-
-        // 绑定按钮
-        window.btnPlay = () => localGame.submitTurn();
-        window.btnPass = () => localGame.passTurn();
-        window.btnReset = () => localGame.recallAll();
-        window.btnSwap = () => alert("联机版暂不支持换牌，请使用跳过");
-        window.game = { 
-            showTutorial: () => document.getElementById('tutorial-modal').style.display = 'flex' 
-        };
-
-    </script>
 </head>
 <body>
 
-    <!-- 大厅覆盖层 -->
-    <div id="lobby-screen">
-        <div class="lobby-card">
-            <h1 style="color:#ffd700; margin-top:0;">G-MATH多人联机版</h1>
-            <input type="text" id="player-name" class="lobby-input" placeholder="输入你的昵称" maxlength="8">
-            <div style="display:flex; gap:10px;">
-                <button id="btn-create" class="lobby-btn btn-create" onclick="createRoom()" disabled>创建房间</button>
-            </div>
-            <div style="margin: 20px 0; border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
-                <input type="number" id="room-id-input" class="lobby-input" placeholder="输入 4 位房间号">
-                <button id="btn-join" class="lobby-btn btn-join" onclick="joinRoom()" disabled>加入房间</button>
-            </div>
-            <p style="color:#888; font-size:0.8rem;">连接服务器中...</p>
+    <header>
+        <h1>G-MATH 🧮 <span class="mobile-score" id="mobile-score-display"></span></h1>
+        <div style="font-size: 0.9rem; color: #ccc;">
+            剩余: <span id="tiles-left-header" style="font-weight:bold; color:white;">0</span>
         </div>
-    </div>
+    </header>
 
-    <!-- 游戏主界面 -->
-    <div id="game-container">
-        <header>
-            <h1>G-MATH <span id="room-id-display" onclick="copyRoomId()">ID: <span id="room-id-text">0000</span> 📋</span></h1>
-            <div style="font-size: 0.9rem; color: #ccc;">
-                剩余: <span id="tiles-left-header" style="font-weight:bold; color:white;">0</span>
+    <div class="main-wrapper">
+        <div class="board-area">
+            <div id="game-board"></div>
+        </div>
+
+        <div class="sidebar">
+            <div id="message-area">欢迎来到 G-MATH!</div>
+
+            <div class="panel score-board">
+                <h4 style="border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px;">
+                    📊 玩家积分
+                </h4>
+                <div id="players-list"></div>
             </div>
-        </header>
 
-        <div class="main-wrapper">
-            <div class="board-area">
-                <div id="game-board"></div>
+            <div class="panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <div style="font-weight:bold; color:#ddd;">🖐️ 你的手牌:</div>
+                    <div style="font-size:0.8em; color:#aaa;" id="rack-hint">(点击选中，再点棋盘)</div>
+                </div>
+                <div id="rack-container"></div>
             </div>
 
-            <div class="sidebar">
-                <!-- 等待开始遮罩 -->
-                <div id="waiting-overlay" style="background:rgba(0,0,0,0.5); padding:15px; border-radius:8px; display:none; flex-direction:column; align-items:center;">
-                    <h3>👥 等待玩家加入...</h3>
-                    <ul id="player-list-wait" style="list-style:none; padding:0; text-align:center; margin-bottom:15px;"></ul>
-                    <button id="btn-start-game" onclick="startGame()" style="background:#2a9d8f; padding:10px 30px;">开始游戏</button>
-                </div>
-
-                <div id="message-area">欢迎来到 G-MATH!</div>
-
-                <div class="panel score-board">
-                    <h4 style="border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px;">
-                        📊 玩家积分
-                    </h4>
-                    <div id="players-list"></div>
-                </div>
-
-                <div class="panel">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                        <div style="font-weight:bold; color:#ddd;">🖐️ 你的手牌:</div>
-                        <div style="font-size:0.8em; color:#aaa;" id="rack-hint">(点击选中，再点棋盘)</div>
-                    </div>
-                    <div id="rack-container"></div>
-                </div>
-
-                <div class="actions">
-                    <button class="btn-play" onclick="btnPlay()">✅ 确认出牌</button>
-                    <button class="btn-swap" onclick="btnSwap()">♻️ 换牌</button>
-                    <button class="btn-reset" onclick="btnReset()">↩️ 收回</button>
-                    <button class="btn-pass" onclick="btnPass()">⏭️ 跳过</button>
-                    <button class="btn-help" onclick="game.showTutorial()">❓ 说明</button>
-                </div>
+            <div class="actions">
+                <button class="btn-play" id="btn-play" onclick="game.playTurn()">✅ 确认出牌</button>
+                
+                <button class="btn-swap" id="btn-swap" onclick="game.toggleSwapMode()">♻️ 换牌</button>
+                <button class="btn-reset" id="btn-reset" onclick="game.recallTiles()">↩️ 收回</button>
+                <button class="btn-pass" id="btn-pass" onclick="game.passTurn()">⏭️ 跳过</button>
+                
+                <button class="btn-shuffle" onclick="game.shuffleRack()">🔀 整理</button>
+                <button class="btn-help" onclick="game.showTutorial()">❓ 说明</button>
+            </div>
+            
+            <div class="panel legend">
+                <div><span style="color:var(--dl-color)">■</span> 2倍数</div>
+                <div><span style="color:var(--tl-color)">■</span> 3倍数</div>
+                <div><span style="color:var(--dw-color)">■</span> 2倍式</div>
+                <div><span style="color:var(--tw-color)">■</span> 3倍式</div>
             </div>
         </div>
     </div>
@@ -797,29 +503,932 @@
         <div class="modal-content" style="max-width: 500px;">
             <h2 id="modal-title" style="margin-top:0">🏆 游戏结束</h2>
             <div id="modal-msg"></div>
-            <button onclick="location.reload()" style="background:#2a9d8f; color:white; padding:15px 30px; font-size:1.1rem; margin-top: 20px;">返回大厅</button>
+            <button onclick="location.reload()" style="background:#2a9d8f; color:white; padding:15px 30px; font-size:1.1rem; margin-top: 20px;">再玩一次</button>
         </div>
     </div>
 
     <!-- Modal: Tutorial -->
-    <div id="tutorial-modal" class="modal">
+    <div id="tutorial-modal" class="modal" style="display: none;">
         <div class="modal-content" style="text-align:left; max-width: 650px;">
             <span class="close-btn" onclick="document.getElementById('tutorial-modal').style.display='none'">&times;</span>
             <h2 style="text-align:center; margin-top:0; color:#4a4e69;">📖 G-MATH 游戏指南</h2>
+            
             <div class="tutorial-section">
                 <h3>🎯 游戏目标</h3>
-                <p>利用手中的数字和符号牌，在棋盘上拼出<strong>正确的数学等式</strong>！</p>
+                <p>利用手中的数字和符号牌，在棋盘上拼出<strong>正确的数学等式</strong>，争取获得最高分！</p>
             </div>
+
             <div class="tutorial-section">
-                <h3>🕹️ 玩法</h3>
+                <h3>🕹️ 玩法流程</h3>
                 <ul class="tutorial-list">
-                    <li>首位玩家必须覆盖中心星号。</li>
-                    <li>牌必须相连，并组成有效等式 (如 2+3=5)。</li>
-                    <li>牌必须包含至少一个 "=" 号。</li>
+                    <li><strong>第一步：</strong>首位玩家出牌必须覆盖棋盘中心的 <span style="color:#ffaaa5; font-weight:bold;">★</span> 星号。</li>
+                    <li><strong>连接：</strong>之后的出牌必须横向或纵向排列，并与棋盘上已有的牌相连。</li>
+                    <li><strong>等式：</strong>必须形成数学上成立的等式（包含 <code>=</code>）。<br>
+                        <small style="color:#555; background:#eee; padding:2px 5px; border-radius:4px;">✔ 例子：<code>2+3=5</code> 或连等式 <code>32÷8=7-3=4</code></small>
+                    </li>
                 </ul>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>🖐️ 操作指南 (支持触屏)</h3>
+                <ul class="tutorial-list">
+                    <li><strong>出牌：</strong>点击手牌选中（变亮） -> 点击棋盘格子放置。</li>
+                    <li><strong>调整：</strong>点击棋盘上刚放下的牌，可以将其收回手牌。</li>
+                    <li><strong>换牌：</strong>手牌不好？点击“♻️ 换牌”进入换牌模式。<br>
+                        <span style="color:#e76f51; font-size:0.9em;">(注意：换牌视为未得分操作，会跳过本回合)</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>🏆 竞技规则</h3>
+                <ul class="tutorial-list">
+                    <li><strong>淘汰机制：</strong>同一玩家连续 <span class="key-point">3次</span> 未得分（跳过或换牌），将被<span class="key-point">直接淘汰</span>出局！</li>
+                    <li><strong>游戏结束：</strong>当牌库空了且有人出完牌，或者场上只剩1人时结束。</li>
+                    <li><strong>胜负：</strong>最终积分最高者获胜。</li>
+                </ul>
+            </div>
+
+            <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-top:15px; text-align:center; border:1px solid #bbdefb; color:#0d47a1;">
+                🖥️ <strong>体验升级：</strong> 建议按键盘 <strong>F11</strong> 进入全屏模式，操作更顺畅！
+            </div>
+
+            <div style="text-align:center; margin-top:20px;">
+                <button onclick="document.getElementById('tutorial-modal').style.display='none'" style="background:#2a9d8f; color:white; padding:12px 40px; font-size:1.1rem; border:none; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">开始挑战！</button>
             </div>
         </div>
     </div>
 
+<!-- Online Lobby Overlay -->
+<div id="lobby-overlay">
+    <div class="lobby-box">
+        <h2>G-MATH 联机大厅</h2>
+        <p>请选择模式</p>
+        <div id="lobby-buttons">
+            <button class="lobby-btn" onclick="createRoom()">创建房间</button>
+            <p style="margin:10px; color:#aaa;">- 或 -</p>
+            <input type="number" id="room-input" class="lobby-input" placeholder="输入6位房间号">
+            <button class="lobby-btn secondary" onclick="joinRoom()">加入房间</button>
+        </div>
+        <div id="lobby-status" style="margin-top:20px; color:#ffd700; min-height: 20px;"></div>
+    </div>
+</div>
+
+<script type="module">
+/**
+ * G-MATH 游戏逻辑 (JavaScript)
+ */
+// 1. 配置与数据
+const BOARD_SIZE = 15;
+const RACK_SIZE = 8; 
+
+// 牌库分布: 增加等于号数量 (总数 108 张)
+const TILE_DISTRIBUTION = {
+    // --- 号码牌 (共 60 张) ---
+    '0': { count: 6, score: 1 },
+    '1': { count: 6, score: 1 },
+    '2': { count: 6, score: 2 },
+    '3': { count: 6, score: 2 },
+    '4': { count: 6, score: 2 },
+    '5': { count: 6, score: 3 },
+    '6': { count: 6, score: 3 },
+    '7': { count: 6, score: 4 },
+    '8': { count: 6, score: 4 },
+    '9': { count: 6, score: 4 },
+    
+    // --- 运算牌 (共 48 张) ---
+    '+': { count: 7, score: 2 },
+    '-': { count: 7, score: 2 },
+    '×': { count: 7, score: 4 }, 
+    '÷': { count: 7, score: 4 },
+    '=': { count: 20, score: 1 } // 大幅增加，防止卡手
+};
+
+const SPECIAL_CELLS = {
+    'TW': ['0,0', '0,7', '0,14', '7,0', '7,14', '14,0', '14,7', '14,14'],
+    'DW': ['1,1', '2,2', '3,3', '4,4', '10,10', '11,11', '12,12', '13,13', '1,13', '2,12', '3,11', '4,10', '10,4', '11,3', '12,2', '13,1'],
+    'TL': ['1,5', '1,9', '5,1', '5,5', '5,9', '5,13', '9,1', '9,5', '9,9', '9,13', '13,5', '13,9'],
+    'DL': ['0,3', '0,11', '2,6', '2,8', '3,0', '3,7', '3,14', '6,2', '6,6', '6,8', '6,12', '7,3', '7,11', '8,2', '8,6', '8,8', '8,12', '11,0', '11,7', '11,14', '12,6', '12,8', '14,3', '14,11']
+};
+
+class Tile {
+    constructor(char, id) {
+        this.char = char;
+        this.score = TILE_DISTRIBUTION[char].score;
+        this.id = id; 
+        this.element = this.createElement();
+    }
+
+    createElement() {
+        const el = document.createElement('div');
+        el.className = 'tile';
+        el.draggable = true;
+        el.id = `tile-${this.id}`;
+        el.dataset.tileId = this.id;
+        el.innerHTML = `${this.char}<span class="points">${this.score}</span>`;
+        el.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', this.id);
+            e.dataTransfer.effectAllowed = "move";
+            game.draggedTileId = this.id;
+            game.selectTile(this.id, true); 
+        });
+        return el;
+    }
+}
+
+class Game {
+    constructor() {
+        this.players = [
+            { name: "玩家 1", score: 0, rack: [], misses: 0, active: true },
+            { name: "玩家 2", score: 0, rack: [], misses: 0, active: true },
+            { name: "玩家 3", score: 0, rack: [], misses: 0, active: true },
+            { name: "玩家 4", score: 0, rack: [], misses: 0, active: true }
+        ];
+        this.currentPlayerIndex = 0;
+        this.numberBag = [];
+        this.operatorBag = []; 
+        this.boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)); 
+        this.isFirstTurn = true;
+        this.tempPlacedTiles = []; 
+        this.selectedTileIds = new Set(); 
+        this.isSwapping = false; 
+        this.draggedTileId = null;
+        this.consecutivePasses = 0;
+        this.init();
+    }
+
+    init() {
+        this.generateTileBag();
+        this.renderBoard();
+        this.shuffleBag();
+        this.players.forEach(p => this.drawTiles(p));
+        this.updateUI();
+        // this.showMessage("👉 玩家 1 请出牌"); // Initial msg moved to updateUI or connection logic
+    }
+
+    showTutorial() { document.getElementById('tutorial-modal').style.display = 'flex'; }
+
+    generateTileBag() {
+        this.numberBag = [];
+        this.operatorBag = [];
+        let idCounter = 0;
+        for (let char in TILE_DISTRIBUTION) {
+            const count = TILE_DISTRIBUTION[char].count;
+            const isNumber = /^[0-9]$/.test(char);
+            for (let i = 0; i < count; i++) {
+                const tile = new Tile(char, idCounter++);
+                if (isNumber) this.numberBag.push(tile);
+                else this.operatorBag.push(tile);
+            }
+        }
+    }
+
+    shuffleBag() {
+        const shuffle = (arr) => {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        };
+        shuffle(this.numberBag);
+        shuffle(this.operatorBag);
+    }
+
+    drawTiles(player) {
+        let currentNums = player.rack.filter(t => /^[0-9]$/.test(t.char)).length;
+        let currentOps = player.rack.filter(t => !/^[0-9]$/.test(t.char)).length;
+        const MAX_NUMS = 5;
+        const MAX_OPS = 3;
+        let shortageMsg = "";
+
+        while (currentNums < MAX_NUMS && this.numberBag.length > 0) {
+            player.rack.push(this.numberBag.pop());
+            currentNums++;
+        }
+        while (currentOps < MAX_OPS && this.operatorBag.length > 0) {
+            player.rack.push(this.operatorBag.pop());
+            currentOps++;
+        }
+        
+        if (currentNums < MAX_NUMS && this.numberBag.length === 0) shortageMsg = "数字牌耗尽";
+        if (currentOps < MAX_OPS && this.operatorBag.length === 0) {
+            shortageMsg = shortageMsg ? "牌库耗尽" : "运算牌耗尽";
+        }
+        return shortageMsg;
+    }
+
+    renderBoard() {
+        const boardEl = document.getElementById('game-board');
+        boardEl.innerHTML = '';
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.r = r;
+                cell.dataset.c = c;
+                const key = `${r},${c}`;
+                if (r===7 && c===7) { cell.classList.add('center'); cell.innerHTML='★'; }
+                else if (SPECIAL_CELLS.TW.includes(key)) { cell.classList.add('tw'); cell.innerText='TW'; }
+                else if (SPECIAL_CELLS.DW.includes(key)) { cell.classList.add('dw'); cell.innerText='DW'; }
+                else if (SPECIAL_CELLS.TL.includes(key)) { cell.classList.add('tl'); cell.innerText='TL'; }
+                else if (SPECIAL_CELLS.DL.includes(key)) { cell.classList.add('dl'); cell.innerText='DL'; }
+
+                cell.onclick = () => this.handleBoardClick(r, c);
+                cell.addEventListener('dragover', (e) => e.preventDefault());
+                cell.addEventListener('drop', (e) => this.handleDropOnBoard(e, r, c));
+                boardEl.appendChild(cell);
+            }
+        }
+    }
+
+    renderRack() {
+        const rackContainer = document.getElementById('rack-container');
+        rackContainer.innerHTML = '';
+        const player = this.players[this.currentPlayerIndex];
+        if (this.isSwapping) rackContainer.classList.add('rack-swapping');
+        else rackContainer.classList.remove('rack-swapping');
+
+        player.rack.forEach(tile => {
+            const tileEl = tile.element;
+            tileEl.classList.remove('temp', 'locked');
+            if (this.selectedTileIds.has(tile.id)) tileEl.classList.add('selected');
+            else tileEl.classList.remove('selected');
+
+            tileEl.onclick = (e) => {
+                e.stopPropagation();
+                this.handleRackTileClick(tile.id);
+            };
+            rackContainer.appendChild(tileEl);
+        });
+    }
+
+    handleRackTileClick(tileId) {
+        if (this.isSwapping) {
+            if (this.selectedTileIds.has(tileId)) this.selectedTileIds.delete(tileId);
+            else this.selectedTileIds.add(tileId);
+        } else {
+            if (this.selectedTileIds.has(tileId)) {
+                this.selectedTileIds.clear();
+            } else {
+                this.selectedTileIds.clear();
+                this.selectedTileIds.add(tileId);
+            }
+        }
+        this.renderRack();
+    }
+
+    handleBoardClick(r, c) {
+        if (this.boardState[r][c] && !this.isTemp(r, c)) return;
+        if (this.isTemp(r, c)) {
+            const tile = this.boardState[r][c];
+            this.boardState[r][c] = null;
+            const tempIdx = this.tempPlacedTiles.findIndex(t => t.r === r && t.c === c);
+            if (tempIdx > -1) this.tempPlacedTiles.splice(tempIdx, 1);
+            this.updateCellUI(r, c);
+            this.players[this.currentPlayerIndex].rack.push(tile);
+            this.selectedTileIds.clear();
+            this.selectedTileIds.add(tile.id);
+            this.renderRack();
+            this.showMessage("已收回牌，点击空格放置");
+            return;
+        }
+        if (this.selectedTileIds.size === 1 && !this.isSwapping) {
+            const tileId = Array.from(this.selectedTileIds)[0];
+            const player = this.players[this.currentPlayerIndex];
+            const tileIndex = player.rack.findIndex(t => t.id == tileId);
+            if (tileIndex > -1) {
+                const tile = player.rack[tileIndex];
+                this.placeTileTemp(tile, r, c);
+                player.rack.splice(tileIndex, 1);
+                this.selectedTileIds.clear();
+                this.renderRack();
+            }
+        }
+    }
+
+    selectTile(tileId, forceExclusive = true) {
+        if (forceExclusive) this.selectedTileIds.clear();
+        this.selectedTileIds.add(tileId);
+        this.renderRack();
+    }
+
+    handleDropOnBoard(e, r, c) {
+        e.preventDefault();
+        if (this.boardState[r][c] !== null) return; 
+        const player = this.players[this.currentPlayerIndex];
+        const tileIndex = player.rack.findIndex(t => t.id == this.draggedTileId);
+        if (tileIndex > -1) {
+            const tile = player.rack[tileIndex];
+            this.placeTileTemp(tile, r, c);
+            player.rack.splice(tileIndex, 1);
+        } else {
+            const existingTempIndex = this.tempPlacedTiles.findIndex(t => t.tile.id == this.draggedTileId);
+            if (existingTempIndex > -1) {
+                const oldPos = this.tempPlacedTiles[existingTempIndex];
+                this.boardState[oldPos.r][oldPos.c] = null;
+                this.updateCellUI(oldPos.r, oldPos.c);
+                this.tempPlacedTiles.splice(existingTempIndex, 1);
+                this.placeTileTemp(oldPos.tile, r, c);
+            }
+        }
+        this.selectedTileIds.clear();
+        this.renderRack();
+    }
+
+    placeTileTemp(tile, r, c) {
+        this.boardState[r][c] = tile;
+        this.tempPlacedTiles.push({r, c, tile});
+        this.updateCellUI(r, c, true);
+    }
+
+    updateCellUI(r, c, isTemp = false) {
+        const index = r * BOARD_SIZE + c;
+        const cell = document.getElementById('game-board').children[index];
+        const tile = this.boardState[r][c];
+        if (!tile) {
+            cell.innerHTML = '';
+            const key = `${r},${c}`;
+            if (r===7&&c===7) cell.innerHTML='★';
+            else if (SPECIAL_CELLS.TW.includes(key)) cell.innerText='TW';
+            else if (SPECIAL_CELLS.DW.includes(key)) cell.innerText='DW';
+            else if (SPECIAL_CELLS.TL.includes(key)) cell.innerText='TL';
+            else if (SPECIAL_CELLS.DL.includes(key)) cell.innerText='DL';
+            return;
+        }
+        cell.innerHTML = ''; 
+        const tileEl = tile.element;
+        tileEl.classList.remove('selected');
+        tileEl.onclick = null;
+        if (isTemp) tileEl.classList.add('temp');
+        else tileEl.classList.add('locked');
+        tileEl.draggable = isTemp; 
+        cell.appendChild(tileEl);
+    }
+
+    recallTiles() {
+        const player = this.players[this.currentPlayerIndex];
+        this.tempPlacedTiles.forEach(item => {
+            this.boardState[item.r][item.c] = null;
+            this.updateCellUI(item.r, item.c);
+            player.rack.push(item.tile);
+        });
+        this.tempPlacedTiles = [];
+        this.selectedTileIds.clear();
+        this.renderRack();
+    }
+
+    passTurn() {
+        if (this.isSwapping) this.toggleSwapMode(); 
+        this.recallTiles();
+        const player = this.players[this.currentPlayerIndex];
+        player.misses++;
+        this.consecutivePasses++;
+        if (this.consecutivePasses >= 4) {
+            this.endGame(true);
+            return;
+        }
+        if (this.checkElimination(player)) return;
+        this.nextTurn(false); 
+    }
+
+    toggleSwapMode() {
+        if (this.tempPlacedTiles.length > 0) {
+            this.showMessage("❌ 请先收回棋盘上的牌", true);
+            return;
+        }
+        if (!this.isSwapping) {
+            this.isSwapping = true;
+            this.selectedTileIds.clear();
+            document.getElementById('btn-swap').innerText = "✅ 确认交换";
+            document.getElementById('btn-swap').classList.add('active');
+            document.getElementById('rack-hint').innerText = "(多选模式：请选择要丢弃的牌)";
+            this.showMessage("请选择要交换的牌，再次点击按钮确认");
+            this.toggleButtons(false);
+        } else {
+            this.executeSwap();
+        }
+        this.renderRack();
+    }
+
+    executeSwap() {
+        if (this.selectedTileIds.size === 0) {
+            this.exitSwapMode();
+            this.showMessage("未选择牌，已取消换牌");
+            return;
+        }
+        if (this.numberBag.length === 0 && this.operatorBag.length === 0) {
+            this.exitSwapMode();
+            this.showMessage("❌ 牌库空了，无法换牌", true);
+            return;
+        }
+        const player = this.players[this.currentPlayerIndex];
+        const newRack = [];
+        const tilesToSwap = [];
+        player.rack.forEach(tile => {
+            if (this.selectedTileIds.has(tile.id)) tilesToSwap.push(tile);
+            else newRack.push(tile);
+        });
+        tilesToSwap.forEach(tile => {
+            tile.element.classList.remove('selected');
+            if (/^[0-9]$/.test(tile.char)) this.numberBag.push(tile);
+            else this.operatorBag.push(tile);
+        });
+        player.rack = newRack;
+        this.shuffleBag();
+        this.drawTiles(player);
+        const count = tilesToSwap.length;
+        this.exitSwapMode();
+        this.showMessage(`♻️ 成功交换 ${count} 张牌`);
+        player.misses++;
+        this.consecutivePasses = 0; 
+        if (this.checkElimination(player)) return;
+        this.nextTurn(true);
+    }
+
+    checkElimination(player) {
+        if (player.misses >= 3) {
+            player.active = false; 
+            this.showMessage(`🚫 ${player.name} 连续3次未得分，已退出比赛！`, true);
+            const activePlayers = this.players.filter(p => p.active);
+            if (activePlayers.length <= 1) {
+                setTimeout(() => this.endGame(true), 1500); 
+            } else {
+                setTimeout(() => this.nextTurn(false), 1500);
+            }
+            return true; 
+        }
+        return false; 
+    }
+
+    exitSwapMode() {
+        this.isSwapping = false;
+        this.selectedTileIds.clear();
+        document.getElementById('btn-swap').innerText = "♻️ 换牌";
+        document.getElementById('btn-swap').classList.remove('active');
+        document.getElementById('rack-hint').innerText = "(点击选中，再次点击棋盘放置)";
+        this.toggleButtons(true);
+        this.renderRack();
+    }
+
+    toggleButtons(enable) {
+        const ids = ['btn-play', 'btn-reset', 'btn-pass'];
+        ids.forEach(id => {
+            document.getElementById(id).disabled = !enable;
+        });
+    }
+
+    shuffleRack() {
+        const p = this.players[this.currentPlayerIndex];
+        for (let i = p.rack.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [p.rack[i], p.rack[j]] = [p.rack[j], p.rack[i]];
+        }
+        this.renderRack();
+    }
+
+    playTurn() {
+        if (this.isSwapping) return; 
+        if (this.tempPlacedTiles.length === 0) {
+            this.showMessage("⚠️ 请先在棋盘上放置牌", true);
+            return;
+        }
+        const rows = this.tempPlacedTiles.map(t => t.r);
+        const cols = this.tempPlacedTiles.map(t => t.c);
+        const isRow = rows.every(r => r === rows[0]);
+        const isCol = cols.every(c => c === cols[0]);
+        if (!isRow && !isCol) {
+            this.showMessage("⚠️ 必须排在同一行或同一列", true);
+            return;
+        }
+        this.tempPlacedTiles.sort((a, b) => isRow ? a.c - b.c : a.r - b.r);
+        let lineTiles = []; 
+        if (isRow) lineTiles = this.getContiguousLine(rows[0], this.tempPlacedTiles[0].c, 'row');
+        else lineTiles = this.getContiguousLine(this.tempPlacedTiles[0].r, cols[0], 'col');
+        if (this.isFirstTurn) {
+            const usesCenter = lineTiles.some(t => t.r === 7 && t.c === 7);
+            if (!usesCenter) { this.showMessage("⚠️ 必须经过中心星号(★)", true); return; }
+            if (lineTiles.length < 3) { this.showMessage("⚠️ 第一步至少需要3张牌", true); return; }
+        } else {
+            const isConnected = lineTiles.some(t => !this.tempPlacedTiles.includes(t)); 
+            let adjacentContact = false;
+            if (!isConnected) {
+                for (let t of this.tempPlacedTiles) {
+                    if (this.hasNeighbor(t.r, t.c)) { adjacentContact = true; break; }
+                }
+            }
+            if (!isConnected && !adjacentContact) { this.showMessage("⚠️ 必须与现有牌相连", true); return; }
+        }
+        if (!this.isValidEquation(lineTiles)) {
+            this.showMessage("❌ 无效等式: " + this.tilesToString(lineTiles), true);
+            return;
+        }
+        let totalScore = this.calculateScore(lineTiles, isRow ? 'row' : 'col');
+        for (let temp of this.tempPlacedTiles) {
+            let crossLine = [];
+            if (isRow) crossLine = this.getContiguousLine(temp.r, temp.c, 'col');
+            else crossLine = this.getContiguousLine(temp.r, temp.c, 'row');
+            if (crossLine.length > 1) {
+                if (!this.isValidEquation(crossLine)) {
+                    this.showMessage("❌ 垂直方向等式无效", true);
+                    return;
+                }
+                totalScore += this.calculateScore(crossLine, isRow ? 'col' : 'row');
+            }
+        }
+        this.confirmMove(totalScore);
+    }
+
+    hasNeighbor(r, c) {
+        const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+        for (let d of dirs) {
+            const nr = r + d[0], nc = c + d[1];
+            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+                if (this.boardState[nr][nc] && !this.isTemp(nr, nc)) return true;
+            }
+        }
+        return false;
+    }
+
+    isTemp(r, c) { return this.tempPlacedTiles.some(t => t.r === r && t.c === c); }
+
+    getContiguousLine(startR, startC, dir) {
+        let line = [];
+        let currR = startR, currC = startC;
+        if (dir === 'row') {
+            while (currC > 0 && this.boardState[currR][currC-1]) currC--;
+            while (currC < BOARD_SIZE && this.boardState[currR][currC]) {
+                line.push({r: currR, c: currC, tile: this.boardState[currR][currC]});
+                currC++;
+            }
+        } else {
+            while (currR > 0 && this.boardState[currR-1][currC]) currR--;
+            while (currR < BOARD_SIZE && this.boardState[currR][currC]) {
+                line.push({r: currR, c: currC, tile: this.boardState[currR][currC]});
+                currR++;
+            }
+        }
+        return line;
+    }
+
+    isValidEquation(lineObjects) {
+        const str = this.tilesToString(lineObjects);
+        if (!str.includes('=')) return false;
+        const parts = str.split('=');
+        if (parts.some(p => p === '')) return false;
+        let targetValue = null;
+        try {
+            const firstPart = parts[0].replace(/×/g, '*').replace(/÷/g, '/');
+            if (/[^0-9+\-×÷]/.test(parts[0])) return false; 
+            if (/\/0/.test(firstPart)) return false; 
+            targetValue = new Function(`return ${firstPart}`)();
+            for (let i = 1; i < parts.length; i++) {
+                const currentPartStr = parts[i].replace(/×/g, '*').replace(/÷/g, '/');
+                if (/[^0-9+\-×÷]/.test(parts[i])) return false;
+                if (/\/0/.test(currentPartStr)) return false;
+                const currentValue = new Function(`return ${currentPartStr}`)();
+                if (Math.abs(currentValue - targetValue) > 0.0001) return false; 
+            }
+            return true;
+        } catch (e) { return false; }
+    }
+
+    tilesToString(lineObjects) { return lineObjects.map(obj => obj.tile.char).join(''); }
+
+    calculateScore(lineObjects, dir) {
+        let score = 0;
+        let wordMultiplier = 1;
+        lineObjects.forEach(obj => {
+            let tileScore = obj.tile.score;
+            if (this.isTemp(obj.r, obj.c)) {
+                const key = `${obj.r},${obj.c}`;
+                if (SPECIAL_CELLS.DL.includes(key)) tileScore *= 2;
+                if (SPECIAL_CELLS.TL.includes(key)) tileScore *= 3;
+                if (SPECIAL_CELLS.DW.includes(key) || (obj.r===7 && obj.c===7 && this.isFirstTurn)) wordMultiplier *= 2;
+                if (SPECIAL_CELLS.TW.includes(key)) wordMultiplier *= 3;
+            }
+            score += tileScore;
+        });
+        return score * wordMultiplier;
+    }
+
+    confirmMove(points) {
+        const player = this.players[this.currentPlayerIndex];
+        player.score += points;
+        player.misses = 0;
+        this.consecutivePasses = 0; 
+        this.showMessage(`🎉 有效！得分: ${points}`);
+        this.tempPlacedTiles.forEach(t => {
+            const el = t.tile.element;
+            el.classList.remove('temp');
+            el.classList.add('locked');
+            el.draggable = false;
+            this.updateCellUI(t.r, t.c);
+        });
+        this.tempPlacedTiles = [];
+        this.isFirstTurn = false;
+        this.selectedTileIds.clear();
+        this.nextTurn(true);
+    }
+
+    nextTurn(isValidMove = false) {
+        const player = this.players[this.currentPlayerIndex];
+        let warning = "";
+        if (player.active) {
+            warning = this.drawTiles(player);
+        }
+        const bagsEmpty = this.numberBag.length === 0 && this.operatorBag.length === 0;
+        if (player.rack.length === 0 && bagsEmpty) {
+            this.endGame(false, player);
+            return;
+        }
+        let loops = 0;
+        do {
+            this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 4;
+            loops++;
+        } while (!this.players[this.currentPlayerIndex].active && loops < 4);
+        if (loops >= 4) {
+            this.endGame(true);
+            return;
+        }
+        this.updateUI();
+        let msg = `👉 轮到 ${this.players[this.currentPlayerIndex].name}`;
+        if (warning && player.rack.length < RACK_SIZE) {
+             msg += ` (${warning}，无法补齐)`;
+        }
+        this.showMessage(msg);
+    }
+
+    endGame(isForced = false, finishingPlayer = null) {
+        let msgHTML = "";
+        if (isForced) {
+            msgHTML += `<div style="color:#e76f51; margin-bottom:10px;">🚫 连续4次跳过或仅剩一人，比赛结束！</div>`;
+        } else if (finishingPlayer) {
+            msgHTML += `<div style="color:#2a9d8f; margin-bottom:10px;">🎉 ${finishingPlayer.name} 出完了所有牌！</div>`;
+        }
+        this.players.sort((a, b) => b.score - a.score);
+        const winner = this.players[0];
+        let tableHTML = `<table class="endgame-table">
+            <tr><th>名次</th><th>玩家</th><th>状态</th><th>最终得分</th></tr>`;
+        this.players.forEach((p, index) => {
+            const status = p.active ? '完赛' : '淘汰';
+            const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
+            tableHTML += `<tr>
+                <td>${medal} ${index + 1}</td>
+                <td>${p.name}</td>
+                <td style="color:${p.active ? '#2a9d8f' : '#e76f51'}">${status}</td>
+                <td><strong>${p.score}</strong></td>
+            </tr>`;
+        });
+        tableHTML += `</table>`;
+        document.getElementById('modal-title').innerText = "🏆 最终战报";
+        document.getElementById('modal-msg').innerHTML = msgHTML + tableHTML;
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    updateUI() {
+        const list = document.getElementById('players-list');
+        list.innerHTML = '';
+        this.players.forEach((p, i) => {
+            const div = document.createElement('div');
+            div.className = `player-score ${i === this.currentPlayerIndex ? 'active' : ''} ${!p.active ? 'eliminated' : ''}`;
+            div.innerHTML = `<span>${p.name}</span> <span>${p.score}</span>`;
+            list.appendChild(div);
+        });
+        const cp = this.players[this.currentPlayerIndex];
+        document.getElementById('mobile-score-display').innerText = `${cp.name}: ${cp.score}分`;
+        document.getElementById('tiles-left-header').innerText = `${this.numberBag.length + this.operatorBag.length} (数:${this.numberBag.length} | 符:${this.operatorBag.length})`;
+        this.renderRack();
+    }
+
+    showMessage(msg, isError = false) {
+        const el = document.getElementById('message-area');
+        el.style.color = isError ? '#ff6b6b' : '#ffd700';
+        el.innerText = msg;
+        el.style.transform = "scale(1.02)";
+        setTimeout(() => el.style.transform = "scale(1)", 200);
+    }
+}
+
+const game = new Game();
+window.game = game; // 暴露给全局，使HTML onclick生效
+
+/* =========================================
+   MULTIPLAYER EXTENSION (Added Code)
+   =========================================
+*/
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+// Firebase Configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyDG8QBOaVkG2X2q04dyG0wVe-vYvsOVAdQ",
+    authDomain: "g-math-pvp-35665.firebaseapp.com",
+    projectId: "g-math-pvp-35665",
+    storageBucket: "g-math-pvp-35665.firebasestorage.app",
+    messagingSenderId: "715488897072",
+    appId: "1:715488897072:web:88c73bf50912fd6c90e5f5",
+    measurementId: "G-63SZM7FYCZ"
+};
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let currentRoomId = null;
+let myPlayerIndex = -1;
+let isMultiplayer = false;
+
+// 序列化辅助函数
+function serializeTile(t) {
+    return t ? { char: t.char, id: t.id, score: t.score } : null;
+}
+function deserializeTile(d) {
+    return d ? new Tile(d.char, d.id) : null;
+}
+
+// 全局函数绑定给HTML按钮
+window.createRoom = async function() {
+    updateStatus("正在登录...");
+    await signInAnonymously(auth);
+    
+    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+    updateStatus("创建房间中...");
+    
+    // 保存初始状态
+    const state = {
+        board: game.boardState.map(row => row.map(c => serializeTile(c))),
+        players: game.players.map(p => ({
+            name: p.name,
+            score: p.score,
+            misses: p.misses,
+            active: p.active,
+            rack: p.rack.map(t => serializeTile(t))
+        })),
+        numberBag: game.numberBag.map(t => serializeTile(t)),
+        operatorBag: game.operatorBag.map(t => serializeTile(t)),
+        currentPlayerIndex: 0,
+        isFirstTurn: true,
+        connectedCount: 1
+    };
+    
+    await setDoc(doc(db, "games", roomId), state);
+    enterGame(roomId, 0);
+}
+
+window.joinRoom = async function() {
+    const input = document.getElementById('room-input').value;
+    if(input.length !== 6) {
+        updateStatus("请输入6位房间号");
+        return;
+    }
+    updateStatus("正在连接...");
+    await signInAnonymously(auth);
+    
+    const docRef = doc(db, "games", input);
+    const snap = await getDoc(docRef);
+    
+    if(!snap.exists()) {
+        updateStatus("房间不存在");
+        return;
+    }
+    
+    const data = snap.data();
+    if(data.connectedCount >= 4) {
+        updateStatus("房间已满");
+        return;
+    }
+    
+    const newIndex = data.connectedCount;
+    await updateDoc(docRef, { connectedCount: newIndex + 1 });
+    enterGame(input, newIndex);
+}
+
+function enterGame(roomId, index) {
+    currentRoomId = roomId;
+    myPlayerIndex = index;
+    isMultiplayer = true;
+    
+    document.getElementById('lobby-overlay').style.display = 'none';
+    game.showMessage(`已进入房间: ${roomId} (你是 ${game.players[index].name})`);
+    
+    // 开始监听同步
+    onSnapshot(doc(db, "games", roomId), (doc) => {
+        const data = doc.data();
+        syncGameState(data);
+    });
+    
+    // 钩子：拦截游戏操作以上传状态
+    hookGameLogic();
+}
+
+function syncGameState(data) {
+    if (!data) return;
+    
+    // 恢复数据
+    game.currentPlayerIndex = data.currentPlayerIndex;
+    game.isFirstTurn = data.isFirstTurn;
+    
+    // 恢复棋盘
+    game.boardState = data.board.map((row, r) => 
+        row.map((cell, c) => {
+            if(!cell) return null;
+            const t = deserializeTile(cell);
+            return t;
+        })
+    );
+    
+    // 恢复玩家
+    game.players.forEach((p, i) => {
+        const d = data.players[i];
+        p.score = d.score;
+        p.misses = d.misses;
+        p.active = d.active;
+        p.name = d.name;
+        // 只更新手牌数据，如果不匹配
+        if(JSON.stringify(p.rack.map(t=>t.id)) !== JSON.stringify(d.rack.map(t=>t.id))) {
+            p.rack = d.rack.map(t => deserializeTile(t));
+        }
+    });
+    
+    // 恢复牌袋
+    if (game.numberBag.length !== data.numberBag.length) game.numberBag = data.numberBag.map(t => deserializeTile(t));
+    if (game.operatorBag.length !== data.operatorBag.length) game.operatorBag = data.operatorBag.map(t => deserializeTile(t));
+    
+    // 重新渲染
+    game.renderBoard();
+    game.renderRack();
+    game.updateUI();
+    
+    // 提示信息
+    if(game.currentPlayerIndex === myPlayerIndex) {
+        game.showMessage("👉 轮到你了！请出牌");
+    } else {
+        game.showMessage(`等待 ${game.players[game.currentPlayerIndex].name} 出牌...`);
+    }
+}
+
+async function pushGameState() {
+    if(!currentRoomId) return;
+    
+    const state = {
+        board: game.boardState.map(row => row.map(c => serializeTile(c))),
+        players: game.players.map(p => ({
+            name: p.name,
+            score: p.score,
+            misses: p.misses,
+            active: p.active,
+            rack: p.rack.map(t => serializeTile(t))
+        })),
+        numberBag: game.numberBag.map(t => serializeTile(t)),
+        operatorBag: game.operatorBag.map(t => serializeTile(t)),
+        currentPlayerIndex: game.currentPlayerIndex,
+        isFirstTurn: game.isFirstTurn
+    };
+    
+    // 使用 merge 防止覆盖 connectedCount
+    await setDoc(doc(db, "games", currentRoomId), state, { merge: true });
+}
+
+function hookGameLogic() {
+    // 拦截 nextTurn (用于 playTurn, passTurn, swap)
+    const originalNextTurn = game.nextTurn.bind(game);
+    game.nextTurn = function(isValidMove) {
+        originalNextTurn(isValidMove);
+        pushGameState();
+    }
+    
+    // 拦截点击，防止非回合操作
+    const originalHandleBoardClick = game.handleBoardClick.bind(game);
+    game.handleBoardClick = function(r, c) {
+        if(game.currentPlayerIndex !== myPlayerIndex) {
+            game.showMessage("🚫 还没轮到你！", true);
+            return;
+        }
+        originalHandleBoardClick(r, c);
+    }
+    
+    // 拦截按钮操作
+    const protectButtons = ['playTurn', 'passTurn', 'toggleSwapMode', 'recallTiles'];
+    // 由于HTML onclick直接调用 game.method，我们替换这些方法
+    protectButtons.forEach(method => {
+        const original = game[method].bind(game);
+        game[method] = function(...args) {
+            if(game.currentPlayerIndex !== myPlayerIndex && method !== 'recallTiles') { // recallTiles 允许本地调整
+                game.showMessage("🚫 还没轮到你！", true);
+                return;
+            }
+            original(...args);
+        }
+    });
+}
+
+function updateStatus(msg) {
+    document.getElementById('lobby-status').innerText = msg;
+}
+
+</script>
 </body>
 </html>
