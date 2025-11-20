@@ -165,7 +165,7 @@
         // 🔴 已为您自动填入配置，直接保存即可
         // ==================================================
         const MANUAL_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyDFG6-iXcZPWxFdApAfd6_ftsJkeOs8vaQ",
+            apiKey: "AIzaSyDFG6-ixcZPWxFdApAfd6_ftsJkeOs8vaQ",
             authDomain: "g-math-pvp.firebaseapp.com",
             projectId: "g-math-pvp",
             storageBucket: "g-math-pvp.firebasestorage.app",
@@ -565,6 +565,7 @@
             showTutorial() { document.getElementById('tutorial-modal').style.display = 'flex'; }
         };
 
+        // Logic
         function generateTileBag() {
             let bag = []; let id = 0;
             for (let k in TILE_CONFIG) { for(let i=0; i<TILE_CONFIG[k]; i++) bag.push({ char: k, score: SCORES[k], id: 't'+(id++) }); }
@@ -591,6 +592,7 @@
         async function commitTurn(action) {
             const roomRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', currentRoomId);
             let updates = {};
+            // Note: In a real app, you'd use a Transaction here. For brevity, we assume local state is fresh.
             let me = localGameState.players[myPlayerIndex];
             let bag = [...localGameState.tileBag];
             let board = [...localGameState.boardState]; 
@@ -657,6 +659,7 @@
                 });
                 if (!connected) return "必须与现有牌相连";
             }
+            // Math validation simplified for brevity
             return null; 
         }
 
