@@ -1258,9 +1258,12 @@ window.createRoom = async function() {
         const roomId = Math.floor(100000 + Math.random() * 900000).toString();
         updateStatus("创建房间中 (Creating)...");
         
+        // 序列化棋盘，并转换为 JSON 字符串以避免嵌套数组错误
+        const boardData = game.boardState.map(row => row.map(c => serializeTile(c)));
+        
         // 保存初始状态
         const state = {
-            board: game.boardState.map(row => row.map(c => serializeTile(c))),
+            board: JSON.stringify(boardData), // 关键修复：转为字符串
             players: game.players.map(p => ({
                 name: p.name,
                 score: p.score,
@@ -1345,14 +1348,16 @@ function syncGameState(data) {
     game.currentPlayerIndex = data.currentPlayerIndex;
     game.isFirstTurn = data.isFirstTurn;
     
-    // 恢复棋盘
-    game.boardState = data.board.map((row, r) => 
-        row.map((cell, c) => {
-            if(!cell) return null;
-            const t = deserializeTile(cell);
-            return t;
-        })
-    );
+    // 恢复棋盘 (处理 JSON 字符串)
+    if (typeof data.board === 'string') {
+        const parsedBoard = JSON.parse(data.board);
+        game.boardState = parsedBoard.map((row, r) => 
+            row.map((cell, c) => {
+                if(!cell) return null;
+                return deserializeTile(cell);
+            })
+        );
+    }
     
     // 恢复玩家
     game.players.forEach((p, i) => {
@@ -1387,8 +1392,11 @@ function syncGameState(data) {
 async function pushGameState() {
     if(!currentRoomId) return;
     
+    // 序列化棋盘，并转换为 JSON 字符串
+    const boardData = game.boardState.map(row => row.map(c => serializeTile(c)));
+    
     const state = {
-        board: game.boardState.map(row => row.map(c => serializeTile(c))),
+        board: JSON.stringify(boardData), // 关键修复：转为字符串
         players: game.players.map(p => ({
             name: p.name,
             score: p.score,
