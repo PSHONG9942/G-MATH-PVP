@@ -589,13 +589,7 @@
                     const div = document.createElement('div');
                     div.className = `player-score ${i === this.currentTurnIndex ? 'active' : ''} ${i === this.myIndex ? 'me' : ''}`;
                     
-                    let rackHtml = '<div class="mini-rack">';
-                    // 显示剩余手牌数量或具体内容 (为了公平，联机时可考虑隐藏对手具体牌，这里为了演示效果显示)
-                    p.rack.forEach(t => {
-                        rackHtml += `<span class="mini-tile">${t.char}</span>`;
-                    });
-                    rackHtml += '</div>';
-
+                    
                     div.innerHTML = `<span class="p-name">${p.name}</span> ${rackHtml} <span class="p-score">${p.score}</span>`;
                     list.appendChild(div);
                 });
@@ -735,7 +729,7 @@
     <!-- 大厅覆盖层 -->
     <div id="lobby-screen">
         <div class="lobby-card">
-            <h1 style="color:#ffd700; margin-top:0;">G-MATH Online v0.2</h1>
+            <h1 style="color:#ffd700; margin-top:0;">G-MATH多人联机版</h1>
             <input type="text" id="player-name" class="lobby-input" placeholder="输入你的昵称" maxlength="8">
             <div style="display:flex; gap:10px;">
                 <button id="btn-create" class="lobby-btn btn-create" onclick="createRoom()" disabled>创建房间</button>
