@@ -160,20 +160,19 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-        import { initializeApp } from "firebase/app";
-        import { getAnalytics } from "firebase/analytics";
+
         // ==================================================
         // 🔴 已为您自动填入配置，直接保存即可
         // ==================================================
         const MANUAL_FIREBASE_CONFIG = {
-              apiKey: "AIzaSyDFG6-iXcZPWxFdApAfd6_ftsJkeOs8vaQ",
-              authDomain: "g-math-pvp.firebaseapp.com",
-              projectId: "g-math-pvp",
-              storageBucket: "g-math-pvp.firebasestorage.app",
-              messagingSenderId: "552556975122",
-              appId: "1:552556975122:web:7b10b3450a6e95806df4cb",
-              measurementId: "G-V503SCHF31"
-                };
+            apiKey: "AIzaSyDFG6-ixcZPWxFdApAfd6_ftsJkeOs8vaQ",
+            authDomain: "g-math-pvp.firebaseapp.com",
+            projectId: "g-math-pvp",
+            storageBucket: "g-math-pvp.firebasestorage.app",
+            messagingSenderId: "552556975122",
+            appId: "1:552556975122:web:7b10b3450a6e95806df4cb",
+            measurementId: "G-V503SCHF31"
+        };
 
         // --- Config Handling ---
         let app, auth, db, APP_ID;
@@ -225,8 +224,6 @@
         // Game Config
         const BOARD_SIZE = 15;
         const RACK_SIZE = 8;
-        
-        // 3:2 Ratio Tile Distribution (Total 100)
         const TILE_CONFIG = {
             '0':6, '1':6, '2':6, '3':6, '4':6, '5':6, '6':6, '7':6, '8':6, '9':6,
             '+':7, '-':7, '×':7, '÷':7, '=':20
@@ -329,6 +326,7 @@
 
         function enterRoomUI(isHost) {
             document.getElementById('lobby-screen').style.display = 'none';
+            document.getElementById('setup-modal').style.display = 'none'; // Ensure setups are closed
             document.getElementById('game-ui').style.display = 'flex'; 
             document.getElementById('room-id-display').innerText = `房间号: ${currentRoomId}`;
             if (!isHost) document.getElementById('host-controls').style.display = 'none';
@@ -628,7 +626,6 @@
             let nextIdx = (localGameState.currentPlayerIndex + 1) % 4;
             let activeCount = allPlayers.filter(p => p.active).length;
             let loops = 0;
-            
             if (activeCount <= 1 || (me.rack.length === 0 && bag.length === 0)) {
                 updates.status = 'finished';
             } else {
