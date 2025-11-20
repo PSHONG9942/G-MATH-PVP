@@ -32,7 +32,7 @@
             flex-direction: column;
         }
 
-        /* === 大厅界面样式 (新增) === */
+        /* === 大厅界面样式 === */
         #lobby-screen {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -292,16 +292,25 @@
         }
     </style>
 
-    <!-- 引入 Firebase (Version 11.6.1) -->
+    <!-- 引入 Firebase SDK -->
     <script type="module">
+        // 导入必要的 SDK 函数 (使用统一的稳定版本)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // 1. 使用环境提供的配置 (自动修复 API Key Error)
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // === 你的 Firebase 配置 (已填入) ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyDG8QBOaVkG2X2q04dyG0wVe-vYvsOVAdQ",
+            authDomain: "g-math-pvp-35665.firebaseapp.com",
+            projectId: "g-math-pvp-35665",
+            storageBucket: "g-math-pvp-35665.firebasestorage.app",
+            messagingSenderId: "715488897072",
+            appId: "1:715488897072:web:88c73bf50912fd6c90e5f5",
+            measurementId: "G-63SZM7FYCZ"
+        };
 
+        // 初始化 Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -313,34 +322,36 @@
         let unsubscribeRoom = null;
         let localGame = null;
 
-        // 2. 优先使用 CustomToken 登录，解决权限问题
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth Error", error);
-                document.getElementById('message-area').innerText = "认证失败，请刷新重试";
+        // === 1. 登录逻辑 (匿名登录) ===
+        // 确保你在 Firebase 控制台 -> Authentication -> Sign-in method 中开启了“匿名(Anonymous)”
+        signInAnonymously(auth).then(() => {
+            console.log("已连接到 Firebase 服务器");
+        }).catch((error) => {
+            console.error("登录失败:", error);
+            let msg = "连接服务器失败";
+            if (error.code === 'auth/admin-restricted-operation' || error.code === 'auth/operation-not-allowed') {
+                msg += " (请在 Firebase 控制台开启匿名登录)";
+            } else {
+                msg += ": " + error.message;
             }
-        };
-        initAuth();
+            alert(msg);
+            document.getElementById('message-area').innerText = msg;
+        });
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 myUid = user.uid;
+                // 登录成功后才启用按钮
                 document.getElementById('btn-create').disabled = false;
                 document.getElementById('btn-join').disabled = false;
                 console.log("User authenticated:", myUid);
             }
         });
 
-        // 辅助函数：获取房间的 Document Reference (遵循 artifacts 路径规则)
+        // 辅助函数：获取房间的 Document Reference
+        // 这里简化了路径，直接放在根目录 'rooms' 集合下，方便你管理
         function getRoomRef(roomId) {
-            // 路径: artifacts/{appId}/public/data/rooms/{roomId}
-            return doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            return doc(db, 'rooms', roomId);
         }
 
         // === 大厅逻辑 ===
@@ -350,6 +361,7 @@
             if (!nameInput) return alert("请输入昵称");
             myName = nameInput;
 
+            // 生成4位随机房间号
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             const roomRef = getRoomRef(roomId);
             
@@ -357,7 +369,7 @@
             const initialGame = new GameEngine(); 
             const gameData = initialGame.serialize();
             
-            // 添加第一个玩家
+            // 添加第一个玩家 (房主)
             gameData.players.push({
                 uid: myUid,
                 name: myName,
@@ -373,7 +385,7 @@
                 enterRoom(roomId);
             } catch (e) {
                 console.error(e);
-                alert("创建房间失败: " + e.message);
+                alert("创建房间失败: " + e.message + "\n请检查 Firestore 规则是否允许读写。");
             }
         };
 
@@ -399,7 +411,7 @@
                     return alert("房间已满");
                 }
 
-                // 如果我已经在了，直接进入；否则更新云端
+                // 如果我已经在了，直接进入；否则更新云端加入列表
                 if (!data.players.find(p => p.uid === myUid)) {
                     const updatedPlayers = [...data.players, {
                         uid: myUid,
@@ -415,7 +427,7 @@
                 enterRoom(roomInput);
             } catch (e) {
                 console.error("Join Error:", e);
-                alert("加入房间失败，请检查网络");
+                alert("加入房间失败: " + e.message);
             }
         };
 
@@ -436,6 +448,7 @@
                 }
             }, (error) => {
                 console.error("Snapshot Error:", error);
+                alert("连接中断: " + error.message);
             });
 
             // 初始化本地游戏引擎
@@ -444,12 +457,12 @@
         }
 
         window.copyRoomId = () => {
-            // 尝试使用现代 API，如果失败使用 execCommand
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(currentRoomId)
                     .then(() => alert("房间号已复制: " + currentRoomId))
                     .catch(() => alert("复制失败，请手动复制"));
             } else {
+                // Fallback
                 const textArea = document.createElement("textarea");
                 textArea.value = currentRoomId;
                 document.body.appendChild(textArea);
@@ -512,6 +525,7 @@
             if (data.status === 'waiting') {
                 waitingEl.style.display = 'flex';
                 document.getElementById('player-list-wait').innerHTML = data.players.map(p => `<li>${p.name}</li>`).join('');
+                // 只有房主显示开始按钮
                 document.getElementById('btn-start-game').style.display = isHost ? 'block' : 'none';
             } else {
                 waitingEl.style.display = 'none';
