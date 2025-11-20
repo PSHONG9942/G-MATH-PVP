@@ -519,6 +519,10 @@
                 </ul>
             </div>
 
+            <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-top:15px; text-align:center; border:1px solid #bbdefb; color:#0d47a1;">
+                🖥️ <strong>体验升级：</strong> 建议按键盘 <strong>F11</strong> 进入全屏模式，操作更顺畅！
+            </div>
+
             <div style="text-align:center; margin-top:20px;">
                 <button onclick="document.getElementById('tutorial-modal').style.display='none'" style="background:#2a9d8f; color:white; padding:12px 40px; font-size:1.1rem; border:none; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">开始挑战！</button>
             </div>
@@ -708,6 +712,7 @@ class Game {
         return shortageMsg;
     }
 
+    // 关键修复：重新渲染棋盘时，检查并显示已有的棋子
     renderBoard() {
         const boardEl = document.getElementById('game-board');
         boardEl.innerHTML = '';
@@ -717,12 +722,27 @@ class Game {
                 cell.className = 'cell';
                 cell.dataset.r = r;
                 cell.dataset.c = c;
+
                 const key = `${r},${c}`;
-                if (r===7 && c===7) { cell.classList.add('center'); cell.innerHTML='★'; }
-                else if (SPECIAL_CELLS.TW.includes(key)) { cell.classList.add('tw'); cell.innerText='TW'; }
-                else if (SPECIAL_CELLS.DW.includes(key)) { cell.classList.add('dw'); cell.innerText='DW'; }
-                else if (SPECIAL_CELLS.TL.includes(key)) { cell.classList.add('tl'); cell.innerText='TL'; }
-                else if (SPECIAL_CELLS.DL.includes(key)) { cell.classList.add('dl'); cell.innerText='DL'; }
+
+                // 检查该位置是否有牌
+                const tile = this.boardState[r][c];
+                if (tile) {
+                    const tileEl = tile.element;
+                    // 确保已锁定的牌没有交互样式
+                    tileEl.classList.remove('temp', 'selected');
+                    tileEl.classList.add('locked');
+                    tileEl.draggable = false;
+                    tileEl.onclick = null; 
+                    cell.appendChild(tileEl);
+                } else {
+                    // 如果没有牌，显示背景文字
+                    if (r===7 && c===7) { cell.classList.add('center'); cell.innerHTML='★'; }
+                    else if (SPECIAL_CELLS.TW.includes(key)) { cell.classList.add('tw'); cell.innerText='TW'; }
+                    else if (SPECIAL_CELLS.DW.includes(key)) { cell.classList.add('dw'); cell.innerText='DW'; }
+                    else if (SPECIAL_CELLS.TL.includes(key)) { cell.classList.add('tl'); cell.innerText='TL'; }
+                    else if (SPECIAL_CELLS.DL.includes(key)) { cell.classList.add('dl'); cell.innerText='DL'; }
+                }
 
                 cell.onclick = () => this.handleBoardClick(r, c);
                 cell.addEventListener('dragover', (e) => e.preventDefault());
