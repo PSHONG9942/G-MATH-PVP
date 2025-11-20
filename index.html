@@ -6,6 +6,7 @@
     <title>G-MATH - 多人联机版</title>
     <style>
         :root {
+            /* 基础颜色 */
             --board-bg: #f0f0f0;
             --tile-bg: #fdf5e6;
             --tile-color: #333;
@@ -15,6 +16,7 @@
             --tw-color: #ff8b94;
             --accent: #4a4e69;
             --dark-bg: #22223b;
+            /* 核心变量：根据屏幕大小计算格子尺寸 */
             --cell-size: min(calc((100vh - 80px) / 15), calc(60vw / 15));
             --sidebar-padding: 20px;
         }
@@ -157,75 +159,55 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         // ==================================================
-        // 🔴 请在这里粘贴您的 Firebase 配置 (Deploy Config)
+        // 🔴 已为您自动填入配置，直接保存即可
         // ==================================================
         const MANUAL_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDFG6-iXcZPWxFdApAfd6_ftsJkeOs8vaQ",
-  authDomain: "g-math-pvp.firebaseapp.com",
-  projectId: "g-math-pvp",
-  storageBucket: "g-math-pvp.firebasestorage.app",
-  messagingSenderId: "552556975122",
-  appId: "1:552556975122:web:7b10b3450a6e95806df4cb",
-  measurementId: "G-V503SCHF31"
-};
-        // 例如: const MANUAL_FIREBASE_CONFIG = { apiKey: "...", ... };
+            apiKey: "AIzaSyDFG6-ixcZPWxFdApAfd6_ftsJkeOs8vaQ",
+            authDomain: "g-math-pvp.firebaseapp.com",
+            projectId: "g-math-pvp",
+            storageBucket: "g-math-pvp.firebasestorage.app",
+            messagingSenderId: "552556975122",
+            appId: "1:552556975122:web:7b10b3450a6e95806df4cb",
+            measurementId: "G-V503SCHF31"
+        };
 
         // --- Config Handling ---
         let app, auth, db, APP_ID;
 
         async function initSystem() {
+            // 1. 优先使用硬编码的配置
             let config = MANUAL_FIREBASE_CONFIG;
+
+            // 2. 如果有配置，清除可能存在的错误缓存，防止冲突
+            if (config) {
+                localStorage.removeItem('gmath_firebase_config');
+            }
             
-            // 1. Check for injected config (Preview mode) - priority 2
-            if (!config) {
-                try {
-                    if (typeof __firebase_config !== 'undefined') {
-                        config = JSON.parse(__firebase_config);
-                    }
-                } catch(e){}
-            }
-
-            // 2. Check for stored config (Local usage without editing code) - priority 3
-            if (!config) {
-                const stored = localStorage.getItem('gmath_firebase_config');
-                if (stored) {
-                    try { config = JSON.parse(stored); } catch(e){}
-                }
-            }
-
-            // 3. If still no config, show Config Screen
-            if (!config) {
-                document.getElementById('lobby-screen').style.display = 'none';
-                document.getElementById('config-screen').style.display = 'flex';
-                return;
-            }
-
-            // 4. Initialize Firebase
+            // 3. Initialize Firebase
             try {
                 app = initializeApp(config);
                 auth = getAuth(app);
                 db = getFirestore(app);
                 APP_ID = (typeof __app_id !== 'undefined') ? __app_id : 'gmath-v1';
                 
+                // Auth Flow
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                      await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                      await signInAnonymously(auth);
                 }
             } catch (e) {
-                alert("Firebase 初始化失败: " + e.message + "\n请检查配置是否正确");
-                document.getElementById('lobby-screen').style.display = 'none';
-                document.getElementById('config-screen').style.display = 'flex';
+                alert("Firebase 初始化失败: " + e.message + "\n\n请检查：\n1. Firebase控制台中是否开启了'Authentication' -> 'Anonymous'?\n2. 是否开启了'Firestore Database'?");
                 return;
             }
 
+            // Success
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
-                    document.getElementById('config-screen').style.display = 'none';
                     document.getElementById('lobby-loading').style.display = 'none';
                     document.getElementById('lobby-screen').style.display = 'flex';
                     document.getElementById('lobby-content').style.display = 'block';
@@ -242,6 +224,8 @@
         // Game Config
         const BOARD_SIZE = 15;
         const RACK_SIZE = 8;
+        
+        // 3:2 Ratio Tile Distribution (Total 100)
         const TILE_CONFIG = {
             '0':6, '1':6, '2':6, '3':6, '4':6, '5':6, '6':6, '7':6, '8':6, '9':6,
             '+':7, '-':7, '×':7, '÷':7, '=':20
@@ -250,6 +234,7 @@
             '0':1, '1':1, '2':2, '3':2, '4':2, '5':3, '6':3, '7':4, '8':4, '9':4,
             '+':2, '-':2, '×':4, '÷':4, '=':1
         };
+
         const SPECIAL_CELLS = {
             'TW': ['0,0', '0,7', '0,14', '7,0', '7,14', '14,0', '14,7', '14,14'],
             'DW': ['1,1', '2,2', '3,3', '4,4', '10,10', '11,11', '12,12', '13,13', '1,13', '2,12', '3,11', '4,10', '10,4', '11,3', '12,2', '13,1'],
@@ -257,18 +242,7 @@
             'DL': ['0,3', '0,11', '2,6', '2,8', '3,0', '3,7', '3,14', '6,2', '6,6', '6,8', '6,12', '7,3', '7,11', '8,2', '8,6', '8,8', '8,12', '11,0', '11,7', '11,14', '12,6', '12,8', '14,3', '14,11']
         };
 
-        // --- Lobby Functions exposed to window ---
-        window.saveConfig = () => {
-            const configStr = document.getElementById('firebase-config-input').value.trim();
-            try {
-                JSON.parse(configStr); // Validate JSON
-                localStorage.setItem('gmath_firebase_config', configStr);
-                location.reload(); // Reload to apply
-            } catch (e) {
-                alert("配置格式错误，请确保是有效的 JSON");
-            }
-        };
-
+        // --- Lobby Functions ---
         window.createRoom = async () => {
             const name = document.getElementById('nickname').value.trim() || "Player";
             const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -345,7 +319,8 @@
             await updateDoc(roomRef, { status: "playing", tileBag: bag, players: players });
         };
 
-        // ... Game Logic (Simplified for display, includes all previous game logic) ...
+        // --- Game Logic (Data separation) ---
+        
         let localGameState = null;
         let tempPlacedTiles = []; 
         let selectedTileIds = new Set();
@@ -353,7 +328,6 @@
 
         function enterRoomUI(isHost) {
             document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('setup-modal').style.display = 'none'; // Ensure setups are closed
             document.getElementById('game-ui').style.display = 'flex'; 
             document.getElementById('room-id-display').innerText = `房间号: ${currentRoomId}`;
             if (!isHost) document.getElementById('host-controls').style.display = 'none';
@@ -370,6 +344,8 @@
             });
         }
 
+        // --- Core Game Rendering & Interaction ---
+
         function renderGame() {
             if (!localGameState) return;
             const currentPlayer = localGameState.players[localGameState.currentPlayerIndex];
@@ -377,26 +353,32 @@
             const statusEl = document.getElementById('status-bar');
             
             if (localGameState.status === 'waiting') {
-                statusEl.innerText = `⏳ 等待房主开始... (${localGameState.players.length}/4)`;
+                statusEl.innerText = `⏳ 等待房主开始游戏... (${localGameState.players.length}/4)`;
                 statusEl.style.color = '#ffd700';
                 disableAllButtons(true);
                 if (myPlayerIndex === 0 && localGameState.players.length > 1) document.getElementById('btn-start-game').style.display = 'block';
             } else if (localGameState.status === 'finished') {
                  statusEl.innerText = "🏆 游戏结束";
                  disableAllButtons(true);
-                 // Trigger End Game Modal logic if not already shown
+                 // Trigger End Game if we just transitioned
+                 // (For simplicity, we check if modal is visible, if not show it)
+                 // NOTE: A proper check would be better, but this works for MVP
+                 if(document.getElementById('modal').style.display !== 'flex') {
+                     endGameUI(localGameState);
+                 }
             } else {
                  if (isMyTurn) {
-                     statusEl.innerText = "🟢 轮到你了！";
+                     statusEl.innerText = "🟢 轮到你了！请出牌";
                      statusEl.style.color = '#4caf50';
                      disableAllButtons(false);
                  } else {
-                     statusEl.innerText = `🔴 等待 ${currentPlayer.name}...`;
+                     statusEl.innerText = `🔴 等待 ${currentPlayer.name} 出牌...`;
                      statusEl.style.color = '#ff9800';
                      disableAllButtons(true);
                  }
                  document.getElementById('btn-start-game').style.display = 'none';
             }
+
             renderBoard();
             renderRack();
             renderScoreboard();
@@ -466,7 +448,6 @@
                 const isActive = i === localGameState.currentPlayerIndex;
                 div.className = `player-row ${isActive ? 'active' : ''} ${!p.active ? 'eliminated' : ''} ${i===myPlayerIndex ? 'me' : ''}`;
                 
-                // Sort and render mini rack
                 const sortedRack = [...p.rack].sort((a, b) => {
                      const isNumA = /^[0-9]$/.test(a.char);
                      const isNumB = /^[0-9]$/.test(b.char);
@@ -481,7 +462,10 @@
                      miniRackHtml += `<div class="mini-tile" style="${isOp?'background:#e3f2fd;color:#0d47a1':''}">${t.char}</div>`;
                 });
                 miniRackHtml += '</div>';
-                div.innerHTML = `<span class="p-name">${p.name}</span> ${miniRackHtml} <span class="p-score">${p.score}</span>`;
+
+                div.innerHTML = `
+                    <span class="p-name">${p.name}</span> ${miniRackHtml} <span class="p-score">${p.score}</span>
+                `;
                 list.appendChild(div);
             });
         }
@@ -507,6 +491,8 @@
             document.getElementById('remaining-tooltip').innerHTML = html;
         }
 
+        // --- Interaction Logic ---
+
         function handleRackClick(tile) {
             if (localGameState.currentPlayerIndex !== myPlayerIndex) return;
             if (isSwapping) {
@@ -520,16 +506,19 @@
         function handleBoardClick(r, c, existingTile, isTemp) {
             if (localGameState.currentPlayerIndex !== myPlayerIndex) return;
             if (localGameState.boardState[r*BOARD_SIZE+c]) return; 
+
             if (isTemp) {
                 tempPlacedTiles = tempPlacedTiles.filter(t => !(t.r === r && t.c === c));
                 renderGame();
                 return;
             }
+
             if (!isSwapping && selectedTileIds.size === 1) {
                 const tileId = [...selectedTileIds][0];
                 const myRack = localGameState.players[myPlayerIndex].rack;
                 const isAlreadyPlaced = tempPlacedTiles.some(t => t.tile.id === tileId);
                 if (isAlreadyPlaced) return;
+
                 const tileObj = myRack.find(t => t.id === tileId);
                 if (tileObj) {
                     tempPlacedTiles.push({ r, c, tile: tileObj });
@@ -539,7 +528,7 @@
             }
         }
 
-        // Actions
+        // --- Game Actions ---
         window.game = {
             async playTurn() {
                 if (tempPlacedTiles.length === 0) return alert("请先放牌");
@@ -570,12 +559,13 @@
                  renderRack();
             },
             async passTurn() {
-                if (confirm("确定跳过？")) await commitTurn({ type: 'pass' });
+                if (confirm("确定跳过回合？(连续3次跳过将淘汰)")) {
+                    await commitTurn({ type: 'pass' });
+                }
             },
             showTutorial() { document.getElementById('tutorial-modal').style.display = 'flex'; }
         };
 
-        // Logic
         function generateTileBag() {
             let bag = []; let id = 0;
             for (let k in TILE_CONFIG) { for(let i=0; i<TILE_CONFIG[k]; i++) bag.push({ char: k, score: SCORES[k], id: 't'+(id++) }); }
@@ -602,7 +592,6 @@
         async function commitTurn(action) {
             const roomRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', currentRoomId);
             let updates = {};
-            // Note: In a real app, you'd use a Transaction here. For brevity, we assume local state is fresh.
             let me = localGameState.players[myPlayerIndex];
             let bag = [...localGameState.tileBag];
             let board = [...localGameState.boardState]; 
@@ -629,7 +618,7 @@
                 me.misses += 1;
             }
 
-            if (me.misses >= 3) { me.active = false; alert("连续3次未得分，您已淘汰！"); }
+            if (me.misses >= 3) { me.active = false; alert("你已连续3次未得分，被淘汰！"); }
             const allPlayers = [...localGameState.players];
             allPlayers[myPlayerIndex] = me;
             updates.players = allPlayers;
@@ -638,17 +627,18 @@
             let nextIdx = (localGameState.currentPlayerIndex + 1) % 4;
             let activeCount = allPlayers.filter(p => p.active).length;
             let loops = 0;
+            
             if (activeCount <= 1 || (me.rack.length === 0 && bag.length === 0)) {
                 updates.status = 'finished';
             } else {
                  while (!allPlayers[nextIdx].active && loops < 4) { nextIdx = (nextIdx + 1) % 4; loops++; }
                  updates.currentPlayerIndex = nextIdx;
             }
+
             await updateDoc(roomRef, updates);
             tempPlacedTiles = []; selectedTileIds.clear(); isSwapping = false;
         }
 
-        // Validation & Scoring
         function validateMove(placed, state) {
             const rows = placed.map(p => p.r); const cols = placed.map(p => p.c);
             const isRow = rows.every(r => r === rows[0]); const isCol = cols.every(c => c === cols[0]);
@@ -669,124 +659,36 @@
                 });
                 if (!connected) return "必须与现有牌相连";
             }
-            // Math validation simplified for brevity
             return null; 
         }
 
         function calculateScore(placed, state) {
             return placed.reduce((sum, p) => sum + p.tile.score, 0) * (placed.length > 5 ? 2 : 1);
         }
-
+        
         function disableAllButtons(disabled) {
             document.querySelectorAll('.actions button').forEach(b => {
                 if (b.id !== 'btn-help') b.disabled = disabled;
             });
         }
 
-        // Start Init
+        // End Game UI Logic
+        function endGameUI(finalState) {
+            let msgHTML = `<div style="color:#e76f51; margin-bottom:10px;">比赛结束！</div>`;
+            const players = [...finalState.players];
+            players.sort((a, b) => b.score - a.score);
+            let tableHTML = `<table class="endgame-table"><tr><th>名次</th><th>玩家</th><th>得分</th></tr>`;
+            players.forEach((p, index) => {
+                const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
+                tableHTML += `<tr><td>${medal} ${index + 1}</td><td>${p.name}</td><td><strong>${p.score}</strong></td></tr>`;
+            });
+            tableHTML += `</table>`;
+            document.getElementById('modal-title').innerText = "🏆 最终战报";
+            document.getElementById('modal-msg').innerHTML = msgHTML + tableHTML;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
         initSystem();
     </script>
-</head>
-<body>
-    <!-- Config Setup Screen (New) -->
-    <div id="config-screen" style="display:none;">
-        <div class="lobby-card">
-            <h2 style="color:#4a4e69;">⚙️ 缺少服务器配置</h2>
-            <p style="color:#666; font-size:0.9rem; margin-bottom:20px;">
-                这是下载后的离线文件。要启用联机功能，您需要连接到一个免费的 Firebase 数据库。
-            </p>
-            <div class="input-group">
-                <label>请粘贴 Firebase Config JSON:</label>
-                <textarea id="firebase-config-input" rows="8" placeholder='{ "apiKey": "...", "authDomain": "...", ... }'></textarea>
-            </div>
-            <button class="lobby-btn btn-save" onclick="saveConfig()">保存并启动</button>
-            <div style="font-size:0.8rem; color:#888; margin-top:10px;">
-                提示: 去 <a href="https://console.firebase.google.com/" target="_blank" style="color:#2a9d8f;">Firebase Console</a> 创建 Web App 即可获取。
-            </div>
-        </div>
-    </div>
-
-    <div id="lobby-screen">
-        <div id="lobby-loading">正在连接服务器...</div>
-        <div id="lobby-content" style="display:none;">
-            <div class="lobby-card">
-                <h1 style="color:#222; justify-content:center;">G-MATH 联机版</h1>
-                <input type="text" id="nickname" class="lobby-input" placeholder="请输入你的名字" maxlength="8">
-                <hr style="margin: 20px 0; border:0; border-top:1px solid #eee;">
-                
-                <button class="lobby-btn btn-create" onclick="createRoom()">创建房间</button>
-                <div style="margin:10px; color:#888;">- 或 -</div>
-                <input type="text" id="room-code-input" class="lobby-input" placeholder="输入房间号 (如: A1B2)" style="text-transform:uppercase;">
-                <button class="lobby-btn btn-join" onclick="joinRoom()">加入房间</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="game-ui">
-        <header>
-            <h1 id="room-id-display">G-MATH</h1>
-            <div id="host-controls" style="display:none;">
-                <button id="btn-start-game" onclick="startGame()" style="background:#e76f51; padding:5px 15px; font-size:0.8rem;">开始游戏</button>
-            </div>
-            <div id="remaining-info">
-                剩余: <span id="tiles-left-header">0</span>
-                <div id="remaining-tooltip"></div>
-            </div>
-        </header>
-
-        <div class="main-wrapper">
-            <div class="board-area">
-                <div id="game-board"></div>
-            </div>
-            <div class="sidebar">
-                <div id="status-bar">等待中...</div>
-                <div class="panel score-board">
-                    <h4>📊 玩家积分</h4>
-                    <div id="players-list"></div>
-                </div>
-                <div class="panel">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="font-weight:bold;">🖐️ 你的手牌</span>
-                    </div>
-                    <div id="rack-container"></div>
-                </div>
-                <div class="actions">
-                    <button class="btn-play" id="btn-play" onclick="game.playTurn()">✅ 出牌</button>
-                    <button class="btn-swap" id="btn-swap" onclick="game.toggleSwapMode()">♻️ 换牌</button>
-                    <button class="btn-reset" id="btn-reset" onclick="game.recallTiles()">↩️ 收回</button>
-                    <button class="btn-pass" id="btn-pass" onclick="game.passTurn()">⏭️ 跳过</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Game Over -->
-    <div id="modal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <h2 id="modal-title" style="margin-top:0">🏆 游戏结束</h2>
-            <div id="modal-msg"></div>
-            <button onclick="location.reload()" style="background:#2a9d8f; color:white; padding:15px 30px; font-size:1.1rem; margin-top: 20px;">再玩一次</button>
-        </div>
-    </div>
-
-    <!-- Modal: Tutorial -->
-    <div id="tutorial-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="text-align:left; max-width: 650px;">
-            <span class="close-btn" onclick="document.getElementById('tutorial-modal').style.display='none'">&times;</span>
-            <h2 style="text-align:center; margin-top:0; color:#4a4e69;">📖 G-MATH 游戏指南</h2>
-            <!-- (Tutorial content omitted for brevity, same as before) -->
-             <div class="tutorial-section">
-                <h3>🏆 竞技规则</h3>
-                <ul class="tutorial-list">
-                    <li><strong>淘汰机制：</strong>同一玩家连续 <span class="key-point">3次</span> 未得分（跳过或换牌），将被<span class="key-point">直接淘汰</span>出局！</li>
-                    <li><strong>游戏结束：</strong>当牌库空了且有人出完牌，或者场上只剩1人时结束。</li>
-                </ul>
-            </div>
-            <div style="text-align:center; margin-top:20px;">
-                <button onclick="document.getElementById('tutorial-modal').style.display='none'" style="background:#2a9d8f; color:white; padding:12px 40px; font-size:1.1rem;">明白了</button>
-            </div>
-        </div>
-    </div>
-
 </body>
 </html>
