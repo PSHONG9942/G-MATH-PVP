@@ -264,7 +264,7 @@
             background: rgba(0,0,0,0.85);
             justify-content: center;
             align-items: center;
-            z-index: 100;
+            z-index: 2000; /* 提高层级，确保覆盖在最上层 */
         }
         .modal-content {
             background: white;
@@ -519,10 +519,6 @@
                 </ul>
             </div>
 
-            <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-top:15px; text-align:center; border:1px solid #bbdefb; color:#0d47a1;">
-                🖥️ <strong>体验升级：</strong> 建议按键盘 <strong>F11</strong> 进入全屏模式，操作更顺畅！
-            </div>
-
             <div style="text-align:center; margin-top:20px;">
                 <button onclick="document.getElementById('tutorial-modal').style.display='none'" style="background:#2a9d8f; color:white; padding:12px 40px; font-size:1.1rem; border:none; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">开始挑战！</button>
             </div>
@@ -586,6 +582,7 @@ let currentRoomId = null;
 let myPlayerId = null;
 let myNickname = "";
 let isHost = false;
+let hasShownTutorial = false; // 标记是否已自动弹窗
 
 // --- 游戏逻辑配置 ---
 const BOARD_SIZE = 15;
@@ -641,6 +638,11 @@ class Game {
         this.isSwapping = false; 
         this.draggedTileId = null;
         this.consecutivePasses = 0;
+    }
+
+    // 修复：加回说明弹窗方法
+    showTutorial() {
+        document.getElementById('tutorial-modal').style.display = 'flex';
     }
 
     // 仅用于本地演示或初始化空状态
@@ -1343,9 +1345,16 @@ function enterWaitingRoom(roomId) {
 
         // 如果游戏开始了，进入游戏界面
         if (data.status === 'playing') {
+             const lobbyVisible = document.getElementById('lobby-overlay').style.display !== 'none';
              document.getElementById('lobby-overlay').style.display = 'none';
              syncGameState(data);
              hookGameLogic(); // 激活游戏操作钩子
+             
+             // 修复：从大厅切换到游戏时，自动弹窗
+             if(lobbyVisible && !hasShownTutorial) {
+                 hasShownTutorial = true;
+                 game.showTutorial();
+             }
         }
     });
 }
