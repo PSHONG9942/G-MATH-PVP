@@ -914,16 +914,27 @@ class Game {
         this.renderRack();
     }
 
+    // 关键修复：跳过逻辑优先判断全员僵局
     passTurn() {
         if (this.isSwapping) this.toggleSwapMode(); 
         this.recallTiles();
         const player = this.players[this.currentPlayerIndex];
+        
+        // 增加计数
         player.misses++;
         this.consecutivePasses++;
-        if (this.consecutivePasses >= this.players.length) { // 每个人都pass一次
-             // 简化结束逻辑
+
+        // 1. 检查全员跳过 (僵局)
+        // 如果连续跳过次数 >= 活跃玩家数，说明每个人都Pass了一轮，触发游戏结束
+        const activeCount = this.players.filter(p => p.active).length;
+        if (this.consecutivePasses >= activeCount) {
+            this.endGame(true); // 传入 true 表示因僵局强制结束
+            return;
         }
+
+        // 2. 检查个人淘汰
         if (this.checkElimination(player)) return;
+
         this.nextTurn(false); 
     }
 
@@ -975,8 +986,11 @@ class Game {
         const count = tilesToSwap.length;
         this.exitSwapMode();
         this.showMessage(`♻️ 成功交换 ${count} 张牌`);
+        
         player.misses++;
+        // 关键修复：换牌打破了纯跳过的僵局（手牌变了），重置全员跳过计数
         this.consecutivePasses = 0; 
+        
         if (this.checkElimination(player)) return;
         this.nextTurn(true);
     }
@@ -1154,7 +1168,10 @@ class Game {
         const player = this.players[this.currentPlayerIndex];
         player.score += points;
         player.misses = 0;
+        
+        // 关键修复：有人得分了，说明游戏还能进行，重置全员跳过计数
         this.consecutivePasses = 0; 
+        
         this.showMessage(`🎉 有效！得分: ${points}`);
         this.tempPlacedTiles.forEach(t => {
             const el = t.tile.element;
