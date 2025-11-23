@@ -1372,17 +1372,17 @@ function renderChat(chatLog) {
     if (!chatLog) return;
     
     const msgArea = document.getElementById('chat-messages');
-    msgArea.innerHTML = ''; // 简单清空重绘，实际项目中可优化
+    msgArea.innerHTML = ''; 
     
-    // 排序（虽然arrayUnion大概率是顺序的，但确保按时间排更稳妥）
     chatLog.sort((a, b) => a.timestamp - b.timestamp);
+    
+    let newMessages = false;
     
     chatLog.forEach(msg => {
         const div = document.createElement('div');
         const isMine = msg.sender === myNickname;
         div.className = `chat-msg ${isMine ? 'mine' : 'others'}`;
         
-        // 系统消息特殊处理 (可选)
         if (msg.sender === 'System') div.className = 'chat-msg system';
         
         div.innerHTML = `
@@ -1392,16 +1392,51 @@ function renderChat(chatLog) {
         msgArea.appendChild(div);
     });
     
-    // 如果不在底部且不是自己发的，可能需要提示，这里简单处理为自动滚动
+    // 滚动与通知逻辑
     if (isChatOpen) {
         msgArea.scrollTop = msgArea.scrollHeight;
     }
     
-    // 新消息通知
-    if (chatLog.length > lastChatCount && !isChatOpen) {
-        document.getElementById('chat-notification').style.display = 'block';
+    // 如果有新消息且不是我发的
+    if (chatLog.length > lastChatCount) {
+        const lastMsg = chatLog[chatLog.length - 1];
+        if (lastMsg.sender !== myNickname) {
+            playNotificationSound(); // 播放提示音
+            if (!isChatOpen) {
+                document.getElementById('chat-notification').style.display = 'block';
+            }
+        }
     }
     lastChatCount = chatLog.length;
+}
+
+// 使用 Web Audio API 生成提示音 (清脆的叮声)
+function playNotificationSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // 设置音色和频率 (类似 'Ding')
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1);
+        
+        // 设置音量包络
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+        console.error("Audio play failed", e);
+    }
 }
 
 // --- 联机大厅逻辑 ---
