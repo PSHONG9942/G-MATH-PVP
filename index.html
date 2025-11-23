@@ -636,6 +636,7 @@ let hasShownTutorial = false; // 标记是否已自动弹窗
 // --- 聊天室变量 ---
 let isChatOpen = false;
 let lastChatCount = 0;
+let audioContext = null;
 
 // --- 游戏逻辑配置 ---
 const BOARD_SIZE = 15;
@@ -1329,7 +1330,22 @@ function deserializeTile(d) { return d ? new Tile(d.char, d.id) : null; }
 
 // --- 聊天室功能函数 ---
 
+// 修复：手机浏览器音频解锁
+function initAudio() {
+    if (!audioContext) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioContext = new AudioContext();
+        }
+    }
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+}
+
 window.toggleChat = function() {
+    initAudio(); // 尝试在点击时解锁音频
+    
     const chatWindow = document.getElementById('chat-window');
     const notif = document.getElementById('chat-notification');
     
@@ -1413,27 +1429,28 @@ function renderChat(chatLog) {
 // 使用 Web Audio API 生成提示音 (清脆的叮声)
 function playNotificationSound() {
     try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
+        if (!audioContext) initAudio();
+        if (!audioContext) return;
         
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        if (audioContext.state === 'suspended') audioContext.resume();
+
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(audioContext.destination);
 
         // 设置音色和频率 (类似 'Ding')
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(500, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(500, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, audioContext.currentTime + 0.1);
         
         // 设置音量包络
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
 
         osc.start();
-        osc.stop(ctx.currentTime + 0.3);
+        osc.stop(audioContext.currentTime + 0.3);
     } catch (e) {
         console.error("Audio play failed", e);
     }
@@ -1442,6 +1459,8 @@ function playNotificationSound() {
 // --- 联机大厅逻辑 ---
 
 window.createRoom = async function() {
+    initAudio(); // 关键：在用户点击创建时解锁音频
+    
     const nick = document.getElementById('nickname-input').value.trim();
     if (!nick) { updateStatus("❌ 请输入昵称"); return; }
     myNickname = nick;
@@ -1473,6 +1492,8 @@ window.createRoom = async function() {
 }
 
 window.joinRoom = async function() {
+    initAudio(); // 关键：在用户点击加入时解锁音频
+    
     const nick = document.getElementById('nickname-input').value.trim();
     if (!nick) { updateStatus("❌ 请输入昵称"); return; }
     myNickname = nick;
